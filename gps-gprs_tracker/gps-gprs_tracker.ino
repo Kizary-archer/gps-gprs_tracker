@@ -5,8 +5,8 @@ SoftwareSerial SIM(2, 3);//RX, TX
 void setup()
 {
   //настройка SIM808 при первом включении
-  SIM.begin(9600);
-  Serial.begin(9600);
+  SIM.begin(19200);
+  Serial.begin(115200);
 
   SIM808info();//вывод информации о модуле
   //Serial.println("Enter command:");
@@ -19,22 +19,30 @@ void loop()
 }
 void serialListen()
 {
-  if (Serial.available() > 0)
+  while (Serial.available() > 0)
+  {
     SIM.write(Serial.read());
-  if (SIM.available() > 0)
-    Serial.write(SIM.read());
+    delay(10);
+  }
+  OutSIM();
 
 }
 void SIM808info()
 {
-  String ATInfo[] = {"port speed:","AT+IPR?","port settings:","AT+ICF?","name","AT+GMM","sim""AT+COPS?"};
+  String ATInfo[] = {"name: ", "ATI", "sim: ", "AT+COPS?","functionality mode: ","AT+CFUN?"};
   Serial.println("********SIM808 info***********");
-
-
-  SIM.println("AT+GMM");
-  Serial.write(SIM.read());
-  
-  SIM.println("AT+COPS?");
-  delay(1000);
-  Serial.write(SIM.read());
+  // byte s = ATInfo.length;
+  for (byte i = 0 ; i < 6; i += 2) {
+    Serial.print(ATInfo[i]);
+    SIM.println(ATInfo[i + 1]);
+    while (!SIM.available())delay(10); //ожидание ответа
+    OutSIM();
+  }
+}
+void OutSIM() //вывод ответа на AT команду
+{
+  while (SIM.available()) {
+    Serial.write(SIM.read());
+    delay(10);
+  }
 }
