@@ -9,12 +9,12 @@ void setup()
   //настройка SIM808 при первом включении
   SIM.begin(19200);
   Serial.begin(115200);
-  String Sett[] = {"AT+CFUN=1", "AT+CGPSPWR=1"};
+  String Sett[] = {"AT+CFUN=1", "AT+CGPSPWR=1","AT+CGPSRST=0","AT+CGPSOUT =1"};
   Serial.println("********SIM808 SETTINGS***********");
-  for (byte i = 0 ; i < 2; i ++) {
+  for (byte i = 0 ; i < 4; i ++) {
     commandSIM(Sett[i],10,DEBUG);
   }
-  SIM808info();//вывод информации о модуле
+  if(DEBUG)SIM808info();//вывод информации о модуле
   Serial.println("******************************");
   Serial.println("Enter command:");
 
@@ -58,10 +58,10 @@ void commandSIM(String command, int timeout, boolean debug) //вывод отв�
 }
 void SIM808info()
 {
-  String ATInfo[] = {"name: ", "ATI", "sim: ", "AT+COPS?", "functionality mode: ", "AT+CFUN?", "GPS power", "AT+CGPSPWR?"};
+  String ATInfo[] = {"name: ", "ATI", "sim: ", "AT+COPS?", "functionality mode: ", "AT+CFUN?", "GPS power: ", "AT+CGPSPWR?", "GPS mode: ", "AT+CGPSRST?"};
   Serial.println("********SIM808 info***********");
-  for (byte i = 0 ; i < 8; i += 2) {
+  for (byte i = 0 ; i < 10; i += 2) {
     Serial.print(ATInfo[i]);
-    commandSIM(ATInfo[i],10,DEBUG);
+    commandSIM(ATInfo[i+1],10,DEBUG);
   }
 }
