@@ -9,25 +9,33 @@ void setup()
   //настройка SIM808 при первом включении
   SIM.begin(19200);
   Serial.begin(115200);
-  String Sett[] = {"AT+CFUN=1", "AT+CGPSPWR=1","AT+CGPSRST=0","AT+CGPSOUT =1"};
+  String Sett[] = {"AT+CFUN=1","AT+CGNSPWR=1","AT+CGNSSEQ=GGA"};
   Serial.println("********SIM808 SETTINGS***********");
-  for (byte i = 0 ; i < 4; i ++) {
-    commandSIM(Sett[i],10,DEBUG);
+  for (byte i = 0 ; i < 3; i ++) {
+    commandSIM(Sett[i], 10, DEBUG);
   }
-  if(DEBUG)SIM808info();//вывод информации о модуле
+  if (DEBUG)SIM808info(); //вывод информации о модуле
   Serial.println("******************************");
   Serial.println("Enter command:");
 
 }
-void getGPS()
-{
-  // SIM.println("");
-}
+
 void loop()
 {
   serialListen();
+  getGPS();
   delay(100);
 }
+
+void getGPS()
+{
+  commandSIM("AT+CGNSPWR=1", 10, DEBUG);
+  commandSIM("AT+CGNSSEQ=GGA", 10, DEBUG);
+  commandSIM("AT+CGNSSEQ?", 1000, DEBUG);
+  commandSIM("AT+CGPSINF=2", 10, DEBUG);
+ // commandSIM("AT+CGNSPWR=0", 10, DEBUG);
+}
+
 void serialListen()
 {
   while (Serial.available())
@@ -46,22 +54,20 @@ void commandSIM(String command, int timeout, boolean debug) //вывод отв�
   String out = "";
   SIM.println(command);
   while (!SIM.available())delay(10); //ожидание ответа
-  if (debug) {
-    long int time = millis();
-    while ( (time + timeout) > millis()) {
-      while (SIM.available()) {
-        out += char(SIM.read());
-      }
+  long int time = millis();
+  while ( (time + timeout) > millis()) {
+    while (SIM.available()) {
+      out += char(SIM.read());
     }
-    Serial.print(out);
   }
+  if (debug) Serial.print(out);
 }
 void SIM808info()
 {
-  String ATInfo[] = {"name: ", "ATI", "sim: ", "AT+COPS?", "functionality mode: ", "AT+CFUN?", "GPS power: ", "AT+CGPSPWR?", "GPS mode: ", "AT+CGPSRST?"};
+  String ATInfo[] = {"name: ", "ATI", "sim: ", "AT+COPS?", "functionality mode: ", "AT+CFUN?", "GPS power: ", "AT+CGPSPWR?", "GPS mode: ", "AT+CGPSRST?", "GPS parsed mode: ", "AT+CGNSSEQ?"};
   Serial.println("********SIM808 info***********");
-  for (byte i = 0 ; i < 10; i += 2) {
+  for (byte i = 0 ; i < 12; i += 2) {
     Serial.print(ATInfo[i]);
-    commandSIM(ATInfo[i+1],10,DEBUG);
+    commandSIM(ATInfo[i + 1], 10, DEBUG);
   }
 }
