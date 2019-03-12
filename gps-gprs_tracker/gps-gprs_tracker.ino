@@ -9,7 +9,7 @@ void setup()
   //настройка SIM808 при первом включении
   SIM.begin(19200);
   Serial.begin(115200);
-  String Sett[] = {"AT+CFUN=1","AT+CGNSPWR=1","AT+CGNSSEQ=GGA"};
+  String Sett[] = {"AT+CFUN=1", "AT+CGNSPWR=1", "AT+CGNSSEQ=GGA"};
   Serial.println("********SIM808 SETTINGS***********");
   for (byte i = 0 ; i < 3; i ++) {
     commandSIM(Sett[i], 10, DEBUG);
@@ -31,9 +31,9 @@ void getGPS()
 {
   commandSIM("AT+CGNSPWR=1", 10, DEBUG);
   commandSIM("AT+CGNSSEQ=GGA", 10, DEBUG);
-  commandSIM("AT+CGNSSEQ?", 1000, DEBUG);
+  //commandSIM("AT+CGNSSEQ?", 1000, DEBUG);
   commandSIM("AT+CGPSINF=2", 10, DEBUG);
- // commandSIM("AT+CGNSPWR=0", 10, DEBUG);
+  // commandSIM("AT+CGNSPWR=0", 10, DEBUG);
 }
 
 void serialListen()
@@ -52,10 +52,14 @@ void serialListen()
 void commandSIM(String command, int timeout, boolean debug) //вывод ответа на AT команду
 {
   String out = "";
+  long int t = millis();
   SIM.println(command);
-  while (!SIM.available())delay(10); //ожидание ответа
-  long int time = millis();
-  while ( (time + timeout) > millis()) {
+  while (!SIM.available())//ожидание ответа
+    if ((t + 5000) < millis())
+      break;
+
+  t = millis();
+  while ( (t + timeout) > millis()) {
     while (SIM.available()) {
       out += char(SIM.read());
     }
