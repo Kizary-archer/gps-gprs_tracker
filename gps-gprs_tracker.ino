@@ -4,6 +4,8 @@ SoftwareSerial SIM(2, 3);//RX, TX
 
 #define DEBUG true
 
+void(* resetFunc) (void) = 0;//перезагрузка
+
 void setup()
 {
   //настройка SIM808 при первом включении
@@ -32,7 +34,7 @@ void getGPS()
   commandSIM("AT+CGNSPWR=1", 10, DEBUG);
   commandSIM("AT+CGNSSEQ=GGA", 10, DEBUG);
   //commandSIM("AT+CGNSSEQ?", 1000, DEBUG);
-  commandSIM("AT+CGPSINF=2", 10, DEBUG);
+  commandSIM("AT+CGPSINF=2", 1000, DEBUG);
   // commandSIM("AT+CGNSPWR=0", 10, DEBUG);
 }
 
@@ -55,8 +57,12 @@ void commandSIM(String command, int timeout, boolean debug) //вывод отв�
   long int t = millis();
   SIM.println(command);
   while (!SIM.available())//ожидание ответа
-    if ((t + 5000) < millis())
-      break;
+    if ((t + 10000) < millis())
+    {
+      Serial.print("Error connect...RESET");
+      delay(1000);
+      resetFunc();
+    }
 
   t = millis();
   while ( (t + timeout) > millis()) {
