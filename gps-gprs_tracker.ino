@@ -5,7 +5,7 @@ SoftwareSerial SIM(2, 3);//RX, TX
 #define DEBUG true
 #define phone +7(969)705-57-85
 
-
+String latitude, longitude, state, satellite;
 
 void(* resetFunc) (void) = 0;//перезагрузка
 
@@ -41,12 +41,11 @@ void getGPS()
 void parseGPSdata(String dataSendGPS)
 {
 
-  Serial.println("-------------");
-  String GPSdata[5] {"","","",""}; //  latitude,longitude,state,satellite
-  int coma[4] = {2, 4, 6};
+  String GPSdata[5]; //  latitude,longitude,state,satellite
+  int coma[5] = {2, 4, 6, 7};
   byte CountComa = 0;
   int i = 0, j = 0, L = dataSendGPS.length();
-  while (i < 90)
+  while (i < L)
   {
     if (dataSendGPS[i] == ',')CountComa++;
 
@@ -55,20 +54,28 @@ void parseGPSdata(String dataSendGPS)
       while (dataSendGPS[i] != ',')
       {
         GPSdata[j] += dataSendGPS[i];
-        GPSdata[3] = dataSendGPS[i+2];
         i++;
       }
       j++;
     }
   }
-  Serial.println(GPSdata[0]);
-  Serial.println("-------------");
-  Serial.println(GPSdata[1]);
-  Serial.println("-------------");
-  Serial.println(GPSdata[2]);
-  Serial.println("-------------");
-  Serial.println(GPSdata[3]);
-  Serial.println("-------------");
+  latitude = GPSdata[0];
+  longitude = GPSdata[1];
+  state = GPSdata[2];
+  satellite = GPSdata[3];
+  if (DEBUG)
+  {
+    Serial.println("-------------");
+    Serial.print("latitude: ");
+    Serial.println(latitude);
+    Serial.print("longitude: ");
+    Serial.println(longitude);
+    Serial.print("state: ");
+    Serial.println(state);
+    Serial.print("satellite: ");
+    Serial.println(satellite);
+    Serial.println("-------------");
+  }
 
 }
 
