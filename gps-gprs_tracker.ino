@@ -4,9 +4,10 @@ SoftwareSerial SIM(2, 3);//RX, TX
 
 #define DEBUG true
 #define PHONE +7(969)705-57-85
-#define ID 0000001
+#define ID 5c8a8175c9ea0e65e0e20ad8
 
 String latitude, longitude, state, satellite;
+boolean SettCorrect = 0;
 
 void(* resetFunc) (void) = 0;//перезагрузка
 
@@ -14,13 +15,14 @@ void setup()  //настройка SIM808 при первом включении
 {
   SIM.begin(19200);
   Serial.begin(115200);
-  char *Sett[] = {"AT+CFUN=1", "AT+CGNSPWR=1", "AT+CGNSSEQ=GGA"};
+  char *Sett[] = {"AT+CFUN=1", "AT+CGNSPWR=1", "AT+CGNSSEQ=GGA", "AT+GSMBUSY=1"};
   Serial.println("********SIM808 SETTINGS***********");
-  for (byte i = 0 ; i < sizeof(Sett); i ++) {
+  for (byte i = 0 ; i < 4; i ++) {
     commandSIM(Sett[i], 10, false, DEBUG);
   }
   initGPRS();
   if (DEBUG)SIM808info(); //вывод информации о модуле
+  SettCorrect = 1;
   Serial.println("******************************");
   Serial.println("Enter command:");
 
@@ -29,8 +31,7 @@ void setup()  //настройка SIM808 при первом включении
 void loop()
 {
   serialListen();
-  getGPS();
-  delay(100);
+  commandSIM("AT+CGPSINF=2", 1000, true, DEBUG);
 }
 
 void initGPRS()
@@ -47,13 +48,6 @@ void initGPRS()
   for (byte i = 0 ; i < 7; i ++) {
     commandSIM(gprsAT[i], 5000, false, DEBUG);
   }
-}
-
-void getGPS()
-{
-  commandSIM("AT+CGNSPWR=1", 10, false, DEBUG);
-  commandSIM("AT+CGNSSEQ=GGA", 10, false, DEBUG);
-  commandSIM("AT+CGPSINF=2", 1000, true, DEBUG);
 }
 
 void parseGPSdata(String dataSendGPS)
@@ -103,12 +97,15 @@ void commandSIM(String command, int timeout, boolean GetData, boolean debug) //�
   long int t = millis();
   SIM.println(command);
   while (!SIM.available())//ожидание ответа
+  {
     if ((t + 10000) < millis())
     {
       Serial.println("Error connect to SIM808...RESET");
+      delay(1000);
+      if (SettCorrect)break;
       resetFunc();
     }
-
+  }
   t = millis();
   while ( (t + timeout) > millis()) {
     while (SIM.available()) {
@@ -151,7 +148,7 @@ void serialListen()//отправка команд в ручном режиме
 
 void SIM808info()//вывод информации о настройках
 {
-  char *ATInfo[] = {"name: ", "ATI","sim: ", "AT+COPS?","functionality mode: ", "AT+CFUN?","GPS power: ", "AT+CGPSPWR?","GPS mode: ", "AT+CGPSRST?","GPS parsed mode: ", "AT+CGNSSEQ?"};
+  char *ATInfo[] = {"name: ", "ATI", "sim: ", "AT+COPS?", "functionality mode: ", "AT+CFUN?", "GPS power: ", "AT+CGPSPWR?", "GPS mode: ", "AT+CGPSRST?", "GPS parsed mode: ", "AT+CGNSSEQ?", "call mode: ", "AT+GSMBUSY?"};
   Serial.println("********SIM808 info***********");
   for (byte i = 0 ; i < sizeof(ATInfo) / 2; i += 2) {
     Serial.print(ATInfo[i]);
