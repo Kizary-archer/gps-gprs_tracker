@@ -4,10 +4,9 @@ SoftwareSerial SIM(2, 3);//RX, TX
 
 #define DEBUG true
 #define PHONE +7(969)705-57-85
-#define ID 5c8a8175c9ea0e65e0e20ad8
 
-String latitude, longitude, state, satellite;
-boolean SettCorrect = 0;
+String latitude, longitude, state, countSatellite,ID = "5c8a8175c9ea0e65e0e20ad8";
+boolean SettCorrect = false,isFuel=true,isWork=true,isPayload=true;
 
 void(* resetFunc) (void) = 0;//перезагрузка
 
@@ -22,18 +21,11 @@ void setup()  //настройка SIM808 при первом включении
   }
   initGPRS();
   if (DEBUG)SIM808info(); //вывод информации о модуле
-  SettCorrect = 1;
+  SettCorrect = true;
   Serial.println("******************************");
   Serial.println("Enter command:");
 
 }
-
-void loop()
-{
-  serialListen();
-  commandSIM("AT+CGPSINF=2", 1000, true, DEBUG);
-}
-
 void initGPRS()
 {
   char *gprsAT[] = {  //массив АТ команд
@@ -46,10 +38,36 @@ void initGPRS()
     "AT+HTTPPARA=\"CID\",1"  //Установка CID параметра для http сессии
   };
   for (byte i = 0 ; i < 7; i ++) {
-    commandSIM(gprsAT[i], 5000, false, DEBUG);
+    commandSIM(gprsAT[i], 2000, false, DEBUG);
   }
 }
 
+
+void SIM808info()//вывод информации о настройках
+{
+  char *ATInfo[] = {"name: ", "ATI", "sim: ", "AT+COPS?", "functionality mode: ", "AT+CFUN?", "GPS power: ", "AT+CGPSPWR?", "GPS mode: ", "AT+CGPSRST?", "GPS parsed mode: ", "AT+CGNSSEQ?", "call mode: ", "AT+GSMBUSY?"};
+  Serial.println("********SIM808 info***********");
+  for (byte i = 0 ; i < sizeof(ATInfo) / 2; i += 2) {
+    Serial.print(ATInfo[i]);
+    commandSIM(ATInfo[i + 1], 10, false, DEBUG);
+  }
+}
+
+void loop()
+{
+  serialListen();
+  commandSIM("AT+CGPSINF=2", 1000, true, DEBUG);
+  HttpSend();
+  delay(1000);
+}
+
+void HttpSend()
+{
+ String Send = "idTracker=" + ID + "&isFuel="+ isFuel +"&isWork="+ isWork +"&isPayload="+ isPayload +"&countSatellite="+ countSatellite +"&lat="+ latitude +"&lon="+ longitude +""; 
+ commandSIM("AT+HTTPPARA=\"URL\",\"https://gt0008.herokuapp.com/api/v1/tracker/update?" + Send + "\"", 10000,false,DEBUG); 
+ commandSIM("AT+HTTPACTION=0", 1000,false,DEBUG); 
+ 
+}
 void parseGPSdata(String dataSendGPS)
 {
 
@@ -74,7 +92,7 @@ void parseGPSdata(String dataSendGPS)
   latitude = GPSdata[0];
   longitude = GPSdata[1];
   state = GPSdata[2];
-  satellite = GPSdata[3];
+  countSatellite = GPSdata[3];
   if (DEBUG)
   {
     Serial.println("-------------");
@@ -85,7 +103,7 @@ void parseGPSdata(String dataSendGPS)
     Serial.print("state: ");
     Serial.println(state);
     Serial.print("satellite: ");
-    Serial.println(satellite);
+    Serial.println(countSatellite);
     Serial.println("-------------");
   }
 
@@ -143,15 +161,5 @@ void serialListen()//отправка команд в ручном режиме
   {
     Serial.write(SIM.read());
     delay(10);
-  }
-}
-
-void SIM808info()//вывод информации о настройках
-{
-  char *ATInfo[] = {"name: ", "ATI", "sim: ", "AT+COPS?", "functionality mode: ", "AT+CFUN?", "GPS power: ", "AT+CGPSPWR?", "GPS mode: ", "AT+CGPSRST?", "GPS parsed mode: ", "AT+CGNSSEQ?", "call mode: ", "AT+GSMBUSY?"};
-  Serial.println("********SIM808 info***********");
-  for (byte i = 0 ; i < sizeof(ATInfo) / 2; i += 2) {
-    Serial.print(ATInfo[i]);
-    commandSIM(ATInfo[i + 1], 10, false, DEBUG);
   }
 }
