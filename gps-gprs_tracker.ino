@@ -64,7 +64,7 @@ void loop()
 void HttpSend()
 {
  String Send = "idTracker=" + ID + "&isFuel="+ isFuel +"&isWork="+ isWork +"&isPayload="+ isPayload +"&countSatellite="+ countSatellite +"&lat="+ latitude +"&lon="+ longitude +""; 
- commandSIM("AT+HTTPPARA=\"URL\",\"https://gt0008.herokuapp.com/api/v1/tracker/update?" + Send + "\"", 10000,false,DEBUG); 
+ commandSIM("AT+HTTPPARA=\"URL\",\"http://gt0008.herokuapp.com/api/v1/tracker/update?" + Send + "\"", 10000,false,DEBUG); 
  commandSIM("AT+HTTPACTION=0", 1000,false,DEBUG); 
  
 }
