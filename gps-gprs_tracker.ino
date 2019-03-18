@@ -6,7 +6,7 @@ SoftwareSerial SIM(2, 3);//RX, TX
 #define PHONE +7(969)705-57-85
 
 String latitude, longitude, state, countSatellite,ID = "5c8a8175c9ea0e65e0e20ad8";
-boolean SettCorrect = false,isFuel=true,isWork=true,isPayload=true;
+boolean isFuel=true,isWork=true,isPayload=true;
 
 void(* resetFunc) (void) = 0;//перезагрузка
 
@@ -14,14 +14,13 @@ void setup()  //настройка SIM808 при первом включении
 {
   SIM.begin(19200);
   Serial.begin(115200);
-  char *Sett[] = {"AT+CFUN=1", "AT+CGNSPWR=1", "AT+CGNSSEQ=GGA", "AT+GSMBUSY=1"};
+  char *Sett[] = {"AT+CFUN=1", "AT+CGNSPWR=1", "AT+CGNSSEQ=GGA", "AT+GSMBUSY=1","AT+CLIP=0"};
   Serial.println("********SIM808 SETTINGS***********");
   for (byte i = 0 ; i < 4; i ++) {
     commandSIM(Sett[i], 10, false, DEBUG);
   }
   initGPRS();
   if (DEBUG)SIM808info(); //вывод информации о модуле
-  SettCorrect = true;
   Serial.println("******************************");
   Serial.println("Enter command:");
 
@@ -120,7 +119,6 @@ void commandSIM(String command, int timeout, boolean GetData, boolean debug) //�
     {
       Serial.println("Error connect to SIM808...RESET");
       delay(1000);
-      if (SettCorrect)break;
       resetFunc();
     }
   }
