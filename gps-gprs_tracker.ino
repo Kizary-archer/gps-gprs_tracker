@@ -14,9 +14,10 @@ void setup()  //настройка SIM808 при первом включении
 {
   SIM.begin(19200);
   Serial.begin(115200);
+  delay(10000);
   char *Sett[] = {"AT+CFUN=1", "AT+CGNSPWR=1", "AT+CGNSSEQ=GGA", "AT+GSMBUSY=1","AT+CLIP=0"};
   Serial.println("********SIM808 SETTINGS***********");
-  for (byte i = 0 ; i < 4; i ++) {
+  for (byte i = 0 ; i < 5; i ++) {
     commandSIM(Sett[i], 10, false, DEBUG);
   }
   initGPRS();
@@ -28,23 +29,30 @@ void setup()  //настройка SIM808 при первом включении
 void initGPRS()
 {
   char *gprsAT[] = {  //массив АТ команд
+    "AT+CGATT=1",  //включение gprs
+    "AT+CSTT=\"internet.beeline.ru\",\"beeline\",\"beeline\"",
+    "AT+CIICR",
+    "AT+CIFSR",
     "AT+SAPBR=3,1,\"CONTYPE\",\"GPRS\"",  //Установка настроек подключения
-    "AT+SAPBR=3,1,\"APN\",\"internet.beeline.ru\"",
-    "AT+SAPBR=3,1,\"USER\",\"beeline\"",
-    "AT+SAPBR=3,1,\"PWD\",\"beeline\"",
-    "AT+SAPBR=1,1",  //Устанавливаем GPRS соединение
     "AT+HTTPINIT",  //Инициализация http сервиса
     "AT+HTTPPARA=\"CID\",1"  //Установка CID параметра для http сессии
   };
   for (byte i = 0 ; i < 7; i ++) {
-    commandSIM(gprsAT[i], 2000, false, DEBUG);
+    commandSIM(gprsAT[i], 3000, false, DEBUG);
   }
 }
 
-
 void SIM808info()//вывод информации о настройках
 {
-  char *ATInfo[] = {"name: ", "ATI", "sim: ", "AT+COPS?", "functionality mode: ", "AT+CFUN?", "GPS power: ", "AT+CGPSPWR?", "GPS mode: ", "AT+CGPSRST?", "GPS parsed mode: ", "AT+CGNSSEQ?", "call mode: ", "AT+GSMBUSY?"};
+  char *ATInfo[] = {"name: ", "ATI",
+                    "sim: ", "AT+COPS?",
+                    "functionality mode: ", "AT+CFUN?",
+                    "GPS power: ", "AT+CGPSPWR?",
+                    "GPS mode: ", "AT+CGPSRST?",
+                    "GPS parsed mode: ","AT+CGNSSEQ?",
+                    "call mode: ","AT+GSMBUSY?",
+                    "DNS: ","AT+CDNSCFG?",
+                    "connect network: ","AT+CREG?"};
   Serial.println("********SIM808 info***********");
   for (byte i = 0 ; i < sizeof(ATInfo) / 2; i += 2) {
     Serial.print(ATInfo[i]);
