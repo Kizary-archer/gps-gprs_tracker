@@ -29,15 +29,17 @@ void setup()  //настройка SIM808 при первом включении
 void initGPRS()
 {
   char *gprsAT[] = {  //массив АТ команд
-    "AT+CGATT=1",  //включение gprs
-    "AT+CSTT=\"internet.beeline.ru\",\"beeline\",\"beeline\"",
-    "AT+CIICR",
-    "AT+CIFSR",
     "AT+SAPBR=3,1,\"CONTYPE\",\"GPRS\"",  //Установка настроек подключения
+    "AT+SAPBR=3,1,\"APN\",\"internet.beeline.ru\"",
+    "AT+SAPBR=3,1,\"USER\",\"beeline\"",
+    "AT+SAPBR=3,1,\"PWD\",\"beeline\"",
+    "AT+SAPBR=1,1",  //Устанавливаем GPRS соединение
     "AT+HTTPINIT",  //Инициализация http сервиса
-    "AT+HTTPPARA=\"CID\",1"  //Установка CID параметра для http сессии
-  };
-  for (byte i = 0 ; i < 7; i ++) {
+    "AT+HTTPPARA=\"CID\",1",  //Установка CID параметра для http сессии
+    "AT+HTTPPARA=\"URL\",\"http://gt0008.herokuapp.com/api/v1/tracker/update?idTracker=5c8a8148e820b85d07571866&isFuel=true&isWork=true&isPayload=true&countSatellite=6&lat=41.1658&lon=45.5652\"",
+    "AT+HTTPACTION=0"
+      };
+  for (byte i = 0 ; i < 9; i ++) {
     commandSIM(gprsAT[i], 3000, false, DEBUG);
   }
 }
@@ -63,9 +65,8 @@ void SIM808info()//вывод информации о настройках
 void loop()
 {
   serialListen();
-  commandSIM("AT+CGPSINF=2", 1000, true, DEBUG);
-  HttpSend();
-  delay(1000);
+  //commandSIM("AT+CGPSINF=2", 1000, true, DEBUG);
+  //HttpSend();
 }
 
 void HttpSend()
