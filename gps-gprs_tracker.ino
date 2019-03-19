@@ -4,7 +4,6 @@ SoftwareSerial SIM(2, 3);//RX, TX
 
 #define DEBUG true
 #define PHONE +7(969)705-57-85
-
 String latitude, longitude, state, countSatellite, ID = "5c8a8175c9ea0e65e0e20ad8";
 boolean isFuel = true, isWork = true, isPayload = true;
 
@@ -18,11 +17,7 @@ void setup()  //настройка SIM808 при первом включении
   long int t = millis();
   while ( (t + 10000) > millis()) //ожидание включения модуля
   {
-      while (SIM.available())
-  {
-    Serial.write(SIM.read());
-    delay(100);
-  }
+      while (SIM.available()) Serial.write(SIM.read());
   }
   Serial.println("\n********SIM808 SETTINGS***********");
   char *Sett[] = {
@@ -84,9 +79,51 @@ void HttpSend()
 {
   String Send = "idTracker=" + ID + "&isFuel=" + isFuel + "&isWork=" + isWork + "&isPayload=" + isPayload + "&countSatellite=" + countSatellite + "&lat=" + latitude + "&lon=" + longitude + "";
   commandSIM("AT+HTTPPARA=\"URL\",\"http://gt0008.herokuapp.com/api/v1/tracker/update?" + Send + "\"", 100, false, DEBUG);
-  commandSIM("AT+HTTPACTION=0", 2000, false, DEBUG);
+  commandSIM("AT+HTTPACTION=0", 2000, true, DEBUG);
 
 }
+
+void commandSIM(String command, int timeout, boolean GetData, boolean debug) //вывод ответа на AT команду
+{
+  String dataSIM808 = "";
+  long int t = millis();
+  SIM.println(command);
+  while (!SIM.available())//ожидание ответа
+  {
+    if ((t + 5000) < millis())
+    {
+      Serial.println("Error connect to SIM808...RESET");
+      delay(1000);
+      resetFunc();
+    }
+  }
+  t = millis();
+  while ( (t + timeout) > millis()) {
+    while (SIM.available()) {
+      dataSIM808 += char(SIM.read());
+    }
+  }
+  if (debug) Serial.print(dataSIM808);
+  if (GetData)eventSIM808(dataSIM808);
+}
+
+void eventSIM808(String dataSIM808)//события с модуля
+{
+  int i = 0;
+  String event = "";
+  while (dataSIM808[i] != '+') {
+    i++;
+  }
+  i++;
+  while (dataSIM808[i] != '=')
+  {
+    event += dataSIM808[i];
+    i++;
+  }
+  if (event == "CGPSINF")parseGPSdata(dataSIM808);
+  else if(event = "HTTPACTION")parseHTTPresultCode(); 
+}
+
 void parseGPSdata(String dataSendGPS)
 {
 
@@ -128,46 +165,10 @@ void parseGPSdata(String dataSendGPS)
 
 }
 
-void commandSIM(String command, int timeout, boolean GetData, boolean debug) //вывод ответа на AT команду
+void parseHTTPresultCode()
 {
-  String dataSIM808 = "";
-  long int t = millis();
-  SIM.println(command);
-  while (!SIM.available())//ожидание ответа
-  {
-    if ((t + 5000) < millis())
-    {
-      Serial.println("Error connect to SIM808...RESET");
-      delay(1000);
-      resetFunc();
-    }
-  }
-  t = millis();
-  while ( (t + timeout) > millis()) {
-    while (SIM.available()) {
-      dataSIM808 += char(SIM.read());
-    }
-  }
-  if (debug) Serial.print(dataSIM808);
-  if (GetData)eventSIM808(dataSIM808);
+  Serial.println("aaaaaaaaaaaaa");
 }
-
-void eventSIM808(String dataSIM808)//события с модуля
-{
-  int i = 0;
-  String event = "";
-  while (dataSIM808[i] != '+') {
-    i++;
-  }
-  i++;
-  while (dataSIM808[i] != '=')
-  {
-    event += dataSIM808[i];
-    i++;
-  }
-  if (event = "CGPSINF")parseGPSdata(dataSIM808);
-}
-
 void serialListen()//отправка команд в ручном режиме
 {
   while (Serial.available())
