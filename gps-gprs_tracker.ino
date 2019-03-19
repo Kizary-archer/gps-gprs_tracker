@@ -24,9 +24,10 @@ void setup()  //настройка SIM808 при первом включении
     "AT+CFUN=1",
     "AT+CGNSPWR=1",
     "AT+CGNSSEQ=GGA",
-    "AT+GSMBUSY=1"
+    "AT+GSMBUSY=1",
+    "AT+CLIP=0"
   };
-  for (byte i = 0 ; i < 4; i ++) commandSIM(Sett[i], 10, false, DEBUG);
+  for (byte i = 0 ; i < 5; i ++) commandSIM(Sett[i], 10, false, DEBUG);
 
   initGPRS();
   if (DEBUG)SIM808info(); //вывод информации о модуле
