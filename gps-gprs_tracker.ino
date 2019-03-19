@@ -73,13 +73,14 @@ void loop()
   serialListen();
   commandSIM("AT+CGPSINF=2", 1000, true, DEBUG);
   //HttpSend();
+  delay(5000);
 }
 
 void HttpSend()
 {
   String Send = "idTracker=" + ID + "&isFuel=" + isFuel + "&isWork=" + isWork + "&isPayload=" + isPayload + "&countSatellite=" + countSatellite + "&lat=" + latitude + "&lon=" + longitude + "";
   commandSIM("AT+HTTPPARA=\"URL\",\"http://gt0008.herokuapp.com/api/v1/tracker/update?" + Send + "\"", 100, false, DEBUG);
-  commandSIM("AT+HTTPACTION=0", 2000, true, DEBUG);
+  commandSIM("AT+HTTPACTION=0", 5000, true, DEBUG);
 
 }
 
