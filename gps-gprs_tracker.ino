@@ -6,7 +6,7 @@ SoftwareSerial SIM(2, 3);//RX, TX
 #define PHONE +7(969)705-57-85
 
 String latitude, longitude, state, countSatellite,ID = "5c8a8175c9ea0e65e0e20ad8";
-boolean SettCorrect = false,isFuel=true,isWork=true,isPayload=true;
+boolean isFuel=true,isWork=true,isPayload=true;
 
 void(* resetFunc) (void) = 0;//перезагрузка
 
@@ -21,14 +21,13 @@ void setup()  //настройка SIM808 при первом включении
   }
   initGPRS();
   if (DEBUG)SIM808info(); //вывод информации о модуле
-  SettCorrect = true;
   Serial.println("******************************");
   Serial.println("Enter command:");
 
 }
 void initGPRS()
 {
-  char *gprsAT[] = {  //массив АТ команд
+  char *gprsAT[] = {
     "AT+SAPBR=3,1,\"CONTYPE\",\"GPRS\"",  //Установка настроек подключения
     "AT+SAPBR=3,1,\"APN\",\"internet.beeline.ru\"",
     "AT+SAPBR=3,1,\"USER\",\"beeline\"",
@@ -38,14 +37,20 @@ void initGPRS()
     "AT+HTTPPARA=\"CID\",1"  //Установка CID параметра для http сессии
   };
   for (byte i = 0 ; i < 7; i ++) {
-    commandSIM(gprsAT[i], 2000, false, DEBUG);
+    commandSIM(gprsAT[i], 100, false, DEBUG);
   }
 }
 
 
 void SIM808info()//вывод информации о настройках
 {
-  char *ATInfo[] = {"name: ", "ATI", "sim: ", "AT+COPS?", "functionality mode: ", "AT+CFUN?", "GPS power: ", "AT+CGPSPWR?", "GPS mode: ", "AT+CGPSRST?", "GPS parsed mode: ", "AT+CGNSSEQ?", "call mode: ", "AT+GSMBUSY?"};
+  char *ATInfo[] = {"name: ", "ATI",
+                    "sim: ", "AT+COPS?",
+                    "functionality mode: ", "AT+CFUN?",
+                    "GPS power: ", "AT+CGPSPWR?",
+                    "GPS mode: ", "AT+CGPSRST?",
+                    "GPS parsed mode: ", "AT+CGNSSEQ?",
+                    "call mode: ", "AT+GSMBUSY?"};
   Serial.println("********SIM808 info***********");
   for (byte i = 0 ; i < sizeof(ATInfo) / 2; i += 2) {
     Serial.print(ATInfo[i]);
@@ -57,22 +62,21 @@ void loop()
 {
   serialListen();
   commandSIM("AT+CGPSINF=2", 1000, true, DEBUG);
-  HttpSend();
-  delay(1000);
+  //HttpSend();
 }
 
 void HttpSend()
 {
  String Send = "idTracker=" + ID + "&isFuel="+ isFuel +"&isWork="+ isWork +"&isPayload="+ isPayload +"&countSatellite="+ countSatellite +"&lat="+ latitude +"&lon="+ longitude +""; 
- commandSIM("AT+HTTPPARA=\"URL\",\"http://gt0008.herokuapp.com/api/v1/tracker/update?" + Send + "\"", 10000,false,DEBUG); 
- commandSIM("AT+HTTPACTION=0", 1000,false,DEBUG); 
+ commandSIM("AT+HTTPPARA=\"URL\",\"http://gt0008.herokuapp.com/api/v1/tracker/update?" + Send + "\"", 100,false,DEBUG); 
+ commandSIM("AT+HTTPACTION=0", 2000,false,DEBUG); 
  
 }
 void parseGPSdata(String dataSendGPS)
 {
 
-  String GPSdata[5]; //  latitude,longitude,state,satellite
-  int coma[5] = {2, 4, 6, 7};
+  String GPSdata[4]; //  latitude,longitude,state,satellite
+  int coma[4] = {2, 4, 6, 7};
   byte CountComa = 0;
   int i = 0, j = 0, L = dataSendGPS.length();
   while (i < L)
@@ -116,11 +120,10 @@ void commandSIM(String command, int timeout, boolean GetData, boolean debug) //�
   SIM.println(command);
   while (!SIM.available())//ожидание ответа
   {
-    if ((t + 10000) < millis())
+    if ((t + 5000) < millis())
     {
       Serial.println("Error connect to SIM808...RESET");
       delay(1000);
-      if (SettCorrect)break;
       resetFunc();
     }
   }
