@@ -5,8 +5,8 @@ SoftwareSerial SIM(2, 3);//RX, TX
 #define DEBUG true
 #define PHONE +7(969)705-57-85
 
-String latitude, longitude, state, countSatellite,ID = "5c8a8175c9ea0e65e0e20ad8";
-boolean isFuel=true,isWork=true,isPayload=true;
+String latitude, longitude, state, countSatellite, ID = "5c8a8175c9ea0e65e0e20ad8";
+boolean isFuel = true, isWork = true, isPayload = true;
 
 void(* resetFunc) (void) = 0;//перезагрузка
 
@@ -14,11 +14,25 @@ void setup()  //настройка SIM808 при первом включении
 {
   SIM.begin(19200);
   Serial.begin(115200);
-  char *Sett[] = {"AT+CFUN=1", "AT+CGNSPWR=1", "AT+CGNSSEQ=GGA", "AT+GSMBUSY=1"};
-  Serial.println("********SIM808 SETTINGS***********");
-  for (byte i = 0 ; i < 4; i ++) {
-    commandSIM(Sett[i], 10, false, DEBUG);
+
+  long int t = millis();
+  while ( (t + 10000) > millis()) //ожидание включения модуля
+  {
+      while (SIM.available())
+  {
+    Serial.write(SIM.read());
+    delay(100);
   }
+  }
+  Serial.println("\n********SIM808 SETTINGS***********");
+  char *Sett[] = {
+    "AT+CFUN=1",
+    "AT+CGNSPWR=1",
+    "AT+CGNSSEQ=GGA",
+    "AT+GSMBUSY=1"
+  };
+  for (byte i = 0 ; i < 4; i ++) commandSIM(Sett[i], 10, false, DEBUG);
+
   initGPRS();
   if (DEBUG)SIM808info(); //вывод информации о модуле
   Serial.println("******************************");
@@ -50,7 +64,8 @@ void SIM808info()//вывод информации о настройках
                     "GPS power: ", "AT+CGPSPWR?",
                     "GPS mode: ", "AT+CGPSRST?",
                     "GPS parsed mode: ", "AT+CGNSSEQ?",
-                    "call mode: ", "AT+GSMBUSY?"};
+                    "call mode: ", "AT+GSMBUSY?"
+                   };
   Serial.println("********SIM808 info***********");
   for (byte i = 0 ; i < sizeof(ATInfo) / 2; i += 2) {
     Serial.print(ATInfo[i]);
@@ -67,10 +82,10 @@ void loop()
 
 void HttpSend()
 {
- String Send = "idTracker=" + ID + "&isFuel="+ isFuel +"&isWork="+ isWork +"&isPayload="+ isPayload +"&countSatellite="+ countSatellite +"&lat="+ latitude +"&lon="+ longitude +""; 
- commandSIM("AT+HTTPPARA=\"URL\",\"http://gt0008.herokuapp.com/api/v1/tracker/update?" + Send + "\"", 100,false,DEBUG); 
- commandSIM("AT+HTTPACTION=0", 2000,false,DEBUG); 
- 
+  String Send = "idTracker=" + ID + "&isFuel=" + isFuel + "&isWork=" + isWork + "&isPayload=" + isPayload + "&countSatellite=" + countSatellite + "&lat=" + latitude + "&lon=" + longitude + "";
+  commandSIM("AT+HTTPPARA=\"URL\",\"http://gt0008.herokuapp.com/api/v1/tracker/update?" + Send + "\"", 100, false, DEBUG);
+  commandSIM("AT+HTTPACTION=0", 2000, false, DEBUG);
+
 }
 void parseGPSdata(String dataSendGPS)
 {
