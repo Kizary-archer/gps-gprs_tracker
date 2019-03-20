@@ -5,7 +5,7 @@ SoftwareSerial SIM(2, 3);//RX, TX
 #define DEBUG true
 #define PHONE +7(969)705-57-85
 float latitude, longitude;
-int state, countSatellite; 
+int countSatellite;
 String ID = "5c8a8175c9ea0e65e0e20ad8";
 boolean isFuel = true, isWork = true, isPayload = true;
 
@@ -75,19 +75,16 @@ void loop()
 {
   serialListen();
   commandSIM("AT+CGPSINF=2", 1000, true, DEBUG);
-  // HttpSend();
+ // HttpSend();
   delay(5000);
+  Serial.println("&");
 }
 
 void HttpSend()
 {
-  //double u = latitude.toDouble();
-  //Serial.println(latitude.toFloat());
-
-  //longitude, state, countSatellite
-  //String Send = "idTracker=" + ID + "&isFuel=" + isFuel + "&isWork=" + isWork + "&isPayload=" + isPayload + "&countSatellite=" + countSatellite + "&lat=" + latitude + "&lon=" + longitude + "";
-  //commandSIM("AT+HTTPPARA=\"URL\",\"http://gt0008.herokuapp.com/api/v1/tracker/update?" + Send + "\"", 100, false, DEBUG);
-  //commandSIM("AT+HTTPACTION=0", 5000, true, DEBUG);
+  String Send = "idTracker=" + ID + "&isFuel=" + isFuel + "&isWork=" + isWork + "&isPayload=" + isPayload + "&countSatellite=" + countSatellite + "&lat=" + latitude + "&lon=" + longitude + "";
+  commandSIM("AT+HTTPPARA=\"URL\",\"http://gt0008.herokuapp.com/api/v1/tracker/update?" + Send + "\"", 100, false, DEBUG);
+  commandSIM("AT+HTTPACTION=0", 5000, true, DEBUG);
 
 }
 
@@ -98,6 +95,7 @@ void commandSIM(String command, int timeout, boolean GetData, boolean debug) //�
   SIM.println(command);
   while (!SIM.available())//ожидание ответа
   {
+    Serial.println("+");
     if ((t + 5000) < millis())
     {
       Serial.println("Error connect to SIM808...RESET");
@@ -113,6 +111,7 @@ void commandSIM(String command, int timeout, boolean GetData, boolean debug) //�
   }
   if (debug) Serial.print(dataSIM808);
   if (GetData)eventSIM808(dataSIM808);
+  Serial.println("/");
 }
 
 void eventSIM808(String dataSIM808)//события с модуля
@@ -129,7 +128,7 @@ void eventSIM808(String dataSIM808)//события с модуля
     i++;
   }
   if (event == "CGPSINF")parseGPSdata(dataSIM808);
-  else if (event = "HTTPACTION")parseHTTPresultCode();
+  else if (event = "HTTPACTION")parseHTTPresultCode(dataSIM808);
 }
 
 void parseGPSdata(String dataSendGPS)
@@ -154,19 +153,21 @@ void parseGPSdata(String dataSendGPS)
     }
   }
   //convert
-  latitude = atof(GPSdata[0].c_str());
-  longitude = atof(GPSdata[1].c_str());
-  state = atoi(GPSdata[2].c_str());
-  countSatellite = atoi(GPSdata[3].c_str());
+  if (GPSdata[2].toInt())
+  {
+    latitude = atof(GPSdata[0].c_str());
+    longitude = atof(GPSdata[1].c_str());
+    countSatellite = GPSdata[3].toInt();
+  }
   if (DEBUG)
   {
     Serial.println("-------------");
     Serial.print("latitude: ");
-    Serial.println(latitude,4);
+    Serial.println(latitude, 4);
     Serial.print("longitude: ");
-    Serial.println(longitude,4);
+    Serial.println(longitude, 4);
     Serial.print("state: ");
-    Serial.println(state);
+    Serial.println(GPSdata[2]);
     Serial.print("satellite: ");
     Serial.println(countSatellite);
     Serial.println("-------------");
@@ -174,9 +175,24 @@ void parseGPSdata(String dataSendGPS)
 
 }
 
-void parseHTTPresultCode()
+void parseHTTPresultCode(String dataHTTPSend)
 {
-  Serial.println("aaaaaaaaaaaaa");
+  String Code;
+  int i = 0, CountComa = 0;
+  while (i < dataHTTPSend.length())
+  {
+    if (dataHTTPSend[i] == ',') {
+      i++;
+      while (dataHTTPSend[i] != ',')
+      {
+        Code += dataHTTPSend[i];
+        i++;
+      }
+    }
+    i++;
+  }
+  if(Code.toInt() == 200) Serial.println("the message is delivered");
+  else Serial.println("the message is not delivered");
 }
 void serialListen()//отправка команд в ручном режиме
 {
