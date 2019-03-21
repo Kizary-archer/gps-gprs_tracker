@@ -3,9 +3,8 @@
 SoftwareSerial SIM(2, 3);//RX, TX
 
 #define DEBUG true
-#define PHONE +7(969)705-57-85
-float latitudeNow, longitudeNow, latitudeLast = 0, longitudeLast = 0;
-int countSatelliteLast, countSatelliteNow;
+float latitudeNow = 0, longitudeNow = 0, latitudeLast = 0, longitudeLast = 0;
+int countSatelliteLast = 0, countSatelliteNow = 0;
 String ID = "5c8a8175c9ea0e65e0e20ad8";
 boolean isFuel = true, isWork = true, isPayload = true;
 
@@ -17,7 +16,7 @@ void setup()  //настройка SIM808 при первом включении
   Serial.begin(115200);
 
   long int t = millis();
-  while ( (t + 1000) > millis()) //ожидание включения модуля
+  while ( (t + 5000) > millis()) //ожидание включения модуля
   {
     while (SIM.available()) Serial.write(SIM.read());
   }
@@ -73,11 +72,18 @@ void SIM808info()//вывод информации о настройках
 
 void loop()
 {
-  serialListen();
-  commandSIM("AT+CGPSINF=2", 1000, true, DEBUG);
-  // HttpSend();
-  checkGeneratorStatus();
-  delay(5000);
+
+  long int t = millis();
+  while (1)
+  {
+    serialListen();
+    if ((t + 60000) < millis()) // проверка состояния генератора каждую минуту
+    {
+      commandSIM("AT+CGPSINF=2", 1000, true, DEBUG);
+      checkGeneratorStatus();
+      break;
+    }
+  }
 }
 void checkGeneratorStatus()
 {
@@ -88,18 +94,19 @@ void checkGeneratorStatus()
     Serial.println("Оно не в кругу");
     if (latitudeNow != latitudeLast)Send += "&lat=" + String(latitudeNow, 4);
     if (longitudeNow != longitudeLast)Send += "&lon=" + String(longitudeNow, 4);
+    if (countSatelliteLast != countSatelliteNow)Send += "&countSatellite=" +  String(countSatelliteNow);
   }
   else   Serial.println("Оно в кругу");
-  if (countSatelliteLast != countSatelliteNow)Send += "&countSatellite=" +  String(countSatelliteNow);
-    Serial.println(Send);
-  //HttpSend(Send)
+  Serial.println(Send);
+  if (Send != "")HttpSend(Send);
 
 }
 void HttpSend(String Send)
 {
-  //  String Send = "idTracker=" + ID + "&isFuel=" + isFuel + "&isWork=" + isWork + "&isPayload=" + isPayload + "&countSatellite=" + countSatellite + "&lat=" + latitude + "&lon=" + longitude + "";
-  //commandSIM("AT+HTTPPARA=\"URL\",\"http://gt0008.herokuapp.com/api/v1/tracker/update?" + Send + "\"", 100, false, DEBUG);
-  //commandSIM("AT+HTTPACTION=0", 5000, true, DEBUG);
+  Send = "idTracker=" + ID + Send;
+  Serial.println(Send);
+  commandSIM("AT+HTTPPARA=\"URL\",\"http://gt0008.herokuapp.com/api/v1/tracker/update?" + Send + "\"", 100, false, DEBUG);
+  commandSIM("AT+HTTPACTION=0", 5000, true, DEBUG);
 }
 
 void commandSIM(String command, int timeout, boolean GetData, boolean debug) //вывод ответа на AT команду
