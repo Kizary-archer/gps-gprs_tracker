@@ -4,7 +4,7 @@ SoftwareSerial SIM(2, 3);//RX, TX
 
 #define DEBUG true
 #define PHONE +7(969)705-57-85
-float latitudeNow, longitudeNow,latitudeLast, longitudeLast;
+float latitudeNow, longitudeNow, latitudeLast = 0, longitudeLast = 0;
 int countSatelliteLast, countSatelliteNow;
 String ID = "5c8a8175c9ea0e65e0e20ad8";
 boolean isFuel = true, isWork = true, isPayload = true;
@@ -81,12 +81,23 @@ void loop()
 }
 void checkGeneratorStatus()
 {
-  int R = 3;
-  if (pow(latitudeNow - latitudeLast, 2) + pow(longitudeNow - longitudeLast, 2)<=pow(R,2))Serial.println("Оно в кругу");
+  String Send = "";
+  float R = 0.0010;
+  if (pow(latitudeNow - latitudeLast, 2) + pow(longitudeNow - longitudeLast, 2) >= pow(R, 2))
+  {
+    Serial.println("Оно не в кругу");
+    if (latitudeNow != latitudeLast)Send += "&lat=" + String(latitudeNow, 4);
+    if (longitudeNow != longitudeLast)Send += "&lon=" + String(longitudeNow, 4);
   }
-void HttpSend()
+  else   Serial.println("Оно в кругу");
+  if (countSatelliteLast != countSatelliteNow)Send += "&countSatellite=" +  String(countSatelliteNow);
+    Serial.println(Send);
+  //HttpSend(Send)
+
+}
+void HttpSend(String Send)
 {
-//  String Send = "idTracker=" + ID + "&isFuel=" + isFuel + "&isWork=" + isWork + "&isPayload=" + isPayload + "&countSatellite=" + countSatellite + "&lat=" + latitude + "&lon=" + longitude + "";
+  //  String Send = "idTracker=" + ID + "&isFuel=" + isFuel + "&isWork=" + isWork + "&isPayload=" + isPayload + "&countSatellite=" + countSatellite + "&lat=" + latitude + "&lon=" + longitude + "";
   //commandSIM("AT+HTTPPARA=\"URL\",\"http://gt0008.herokuapp.com/api/v1/tracker/update?" + Send + "\"", 100, false, DEBUG);
   //commandSIM("AT+HTTPACTION=0", 5000, true, DEBUG);
 }
