@@ -28,7 +28,7 @@ void setup()  //настройка SIM808 при первом включении
     "AT+GSMBUSY=1",
     "AT+CLIP=0"
   };
-  for (byte i = 0 ; i < 5; i ++) commandSIM(Sett[i], 10, false, DEBUG);
+  for (byte i = 0 ; i < 5; i ++) commandSIM(Sett[i], 100, false, DEBUG);
 
   initGPRS();
   if (DEBUG)SIM808info(); //вывод информации о модуле
@@ -48,7 +48,7 @@ void initGPRS()
     "AT+HTTPPARA=\"CID\",1"  //Установка CID параметра для http сессии
   };
   for (byte i = 0 ; i < 7; i ++) {
-    commandSIM(gprsAT[i], 100, false, DEBUG);
+    commandSIM(gprsAT[i], 2000, false, DEBUG);
   }
 }
 
@@ -77,7 +77,7 @@ void loop()
   while (1)
   {
     serialListen();
-    if ((t + 60000) < millis()) // проверка состояния генератора каждую минуту
+    if ((t + 10000) < millis()) // проверка состояния генератора каждую минуту
     {
       commandSIM("AT+CGPSINF=2", 1000, true, DEBUG);
       checkGeneratorStatus();
@@ -92,8 +92,8 @@ void checkGeneratorStatus()
   if (pow(latitudeNow - latitudeLast, 2) + pow(longitudeNow - longitudeLast, 2) >= pow(R, 2))
   {
     Serial.println("Оно не в кругу");
-    if (latitudeNow != latitudeLast)Send += "&lat=" + String(latitudeNow, 4);
-    if (longitudeNow != longitudeLast)Send += "&lon=" + String(longitudeNow, 4);
+   Send += "&lat=" + String(latitudeNow, 4);
+   Send += "&lon=" + String(longitudeNow, 4);
     if (countSatelliteLast != countSatelliteNow)Send += "&countSatellite=" +  String(countSatelliteNow);
   }
   else   Serial.println("Оно в кругу");
@@ -103,9 +103,9 @@ void checkGeneratorStatus()
 }
 void HttpSend(String Send)
 {
-  Send = "idTracker=" + ID + Send;
+ Send = "http://gt0008.herokuapp.com/api/v1/tracker/update?idTracker=" + ID + Send;
   Serial.println(Send);
-  commandSIM("AT+HTTPPARA=\"URL\",\"http://gt0008.herokuapp.com/api/v1/tracker/update?" + Send + "\"", 100, false, DEBUG);
+  commandSIM("AT+HTTPPARA=\"URL\",\"" + Send + "\"", 5000, false, DEBUG);
   commandSIM("AT+HTTPACTION=0", 5000, true, DEBUG);
 }
 
@@ -113,6 +113,7 @@ void commandSIM(String command, int timeout, boolean GetData, boolean debug) //�
 {
   String dataSIM808 = "";
   long int t = millis();
+  Serial.println(command);
   SIM.println(command);
   while (!SIM.available())//ожидание ответа
   {
