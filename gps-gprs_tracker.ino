@@ -44,11 +44,10 @@ void initGPRS()
     "AT+SAPBR=3,1,\"USER\",\"beeline\"",
     "AT+SAPBR=3,1,\"PWD\",\"beeline\"",
     "AT+SAPBR=1,1",  //Устанавливаем GPRS соединение
-    "AT+HTTPINIT",  //Инициализация http сервиса
-    "AT+HTTPPARA=\"CID\",1"  //Установка CID параметра для http сессии
+    "AT+SAPBR=2,1" //Проверяем как настроилось
   };
-  for (byte i = 0 ; i < 7; i ++) {
-    commandSIM(gprsAT[i], 2000, false, DEBUG);
+  for (byte i = 0 ; i < 6; i ++) {
+    commandSIM(gprsAT[i],2000, false, DEBUG);
   }
 }
 
@@ -77,7 +76,7 @@ void loop()
   while (1)
   {
     serialListen();
-    if ((t + 10000) < millis()) // проверка состояния генератора каждую минуту
+    if ((t + 1000) < millis()) // проверка состояния генератора каждую минуту
     {
       commandSIM("AT+CGPSINF=2", 1000, true, DEBUG);
       checkGeneratorStatus();
@@ -92,20 +91,21 @@ void checkGeneratorStatus()
   if (pow(latitudeNow - latitudeLast, 2) + pow(longitudeNow - longitudeLast, 2) >= pow(R, 2))
   {
     Serial.println("Оно не в кругу");
-   Send += "&lat=" + String(latitudeNow, 4);
-   Send += "&lon=" + String(longitudeNow, 4);
-    if (countSatelliteLast != countSatelliteNow)Send += "&countSatellite=" +  String(countSatelliteNow);
+    Send += "&lat=" + String(latitudeNow, 4);
+    Send += "&lon=" + String(longitudeNow, 4);
+    Send += "&countSatellite=" +  String(countSatelliteNow);
   }
   else   Serial.println("Оно в кругу");
-  Serial.println(Send);
   if (Send != "")HttpSend(Send);
 
 }
 void HttpSend(String Send)
 {
- Send = "http://gt0008.herokuapp.com/api/v1/tracker/update?idTracker=" + ID + Send;
+  Send = String("AT+HTTPPARA=\"URL\",http://gt0008.herokuapp.com/api/v1/tracker/update?idTracker=" + ID + Send);
   Serial.println(Send);
-  commandSIM("AT+HTTPPARA=\"URL\",\"" + Send + "\"", 5000, false, DEBUG);
+  commandSIM("AT+HTTPINIT", 1000, false, DEBUG);
+  commandSIM("AT+HTTPPARA=\"CID\",1", 1000, false, DEBUG);
+  commandSIM(Send, 1000, false, DEBUG);
   commandSIM("AT+HTTPACTION=0", 5000, true, DEBUG);
 }
 
@@ -113,7 +113,6 @@ void commandSIM(String command, int timeout, boolean GetData, boolean debug) //�
 {
   String dataSIM808 = "";
   long int t = millis();
-  Serial.println(command);
   SIM.println(command);
   while (!SIM.available())//ожидание ответа
   {
@@ -214,6 +213,7 @@ void parseHTTPresultCode(String dataHTTPSend)
     }
     i++;
   }
+  Serial.println(Code);
   if (Code.toInt() == 200) Serial.println("the message is delivered");
   else Serial.println("the message is not delivered");
 }
