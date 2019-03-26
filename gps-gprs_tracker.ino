@@ -83,9 +83,9 @@ void loop()
   while (1)
   {
     serialListen();
-    if ((t + 1000) < millis()) // проверка состояния генератора каждую минуту
+    if ((t + 10000) < millis()) // проверка состояния генератора каждую минуту
     {
-      commandSIM("AT+CGPSINF=2", 100, true, DEBUG);
+      commandSIM("AT+CGPSINF=2", 1000, true, DEBUG);
       checkGeneratorStatus();
       break;
     }
@@ -94,7 +94,7 @@ void loop()
 void checkGeneratorStatus()
 {
   String Send = "";
-  float R = 0.0010;
+  float R = 0.0000;
   if (pow(latitudeNow - latitudeLast, 2) + pow(longitudeNow - longitudeLast, 2) >= pow(R, 2))
   {
     Serial.println("Оно не в кругу");
@@ -109,11 +109,11 @@ void checkGeneratorStatus()
 void HttpSend(String Send)
 {
   Send = String("AT+HTTPPARA=\"URL\",http://gt0008.herokuapp.com/api/v1/tracker/update?idTracker=" + ID + Send);
-  Serial.println(Send);
+  //Serial.println(Send);
   commandSIM("AT+HTTPINIT", 1000, false, DEBUG);
   commandSIM("AT+HTTPPARA=\"CID\",1", 1000, false, DEBUG);
   commandSIM(Send, 1000, false, DEBUG);
-  commandSIM("AT+HTTPACTION=0", 5000, true, DEBUG);
+  commandSIM("AT+HTTPACTION=0", 10000, true, DEBUG);
 }
 
 void commandSIM(String command, int timeout, boolean GetData, boolean debug) //вывод ответа на AT команду
@@ -123,7 +123,7 @@ void commandSIM(String command, int timeout, boolean GetData, boolean debug) //�
   SIM.println(command);
   while (!SIM.available())//ожидание ответа
   {
-    if ((t + 5000) < millis())
+    if ((t + 10000) < millis())
     {
       Serial.println("Error connect to SIM808...RESET");
       delay(1000);
@@ -147,7 +147,7 @@ void eventSIM808(String dataSIM808)//события с модуля
   long int t = millis();
   while (dataSIM808[i] != '+') {
     i++;
-    if ((t + 1000) < millis())break;
+    if ((t + 10000) < millis())break;
   }
   i++;
   t = millis();
@@ -157,13 +157,14 @@ void eventSIM808(String dataSIM808)//события с модуля
     i++;
     if ((t + 1000) < millis())break;
   }
+  //Serial.println(event);
   if (event == "CGPSINF")parseGPSdata(dataSIM808);
   else if (event == "HTTPACTION")parseHTTPresultCode(dataSIM808);
 }
 
 void parseGPSdata(String dataSendGPS)
 {
-
+  // Serial.println(dataSendGPS);
   String GPSdata[4]; //  latitude,longitude,state,satellite
   int coma[4] = {2, 4, 6, 7};
   byte CountComa = 0;
@@ -212,7 +213,8 @@ void parseGPSdata(String dataSendGPS)
 
 void parseHTTPresultCode(String dataHTTPSend)
 {
-  String Code;
+  // Serial.println(dataHTTPSend);
+  String Code = "";
   int i = 0, CountComa = 0;
   long int t = millis();
   while (i < dataHTTPSend.length())
@@ -228,9 +230,9 @@ void parseHTTPresultCode(String dataHTTPSend)
     }
     i++;
   }
-  Serial.println(Code);
-  if (Code.toInt() == 200) Serial.println("the message is delivered");
-  else Serial.println("the message is not delivered");
+ /* Serial.println(Code);
+  if (Code == "200") Serial.println("the message is delivered");
+  else Serial.println("the message is not delivered");*/
 }
 void serialListen()//отправка команд в ручном режиме
 {
