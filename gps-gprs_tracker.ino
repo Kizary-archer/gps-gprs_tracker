@@ -2,7 +2,7 @@
 
 SoftwareSerial SIM(2, 3);//RX, TX
 
-#define DEBUG false
+#define DEBUG true
 float latitudeNow = 0, longitudeNow = 0, latitudeLast = 0, longitudeLast = 0;
 int countSatelliteLast = 0, countSatelliteNow = 0;
 String ID = "5c8a8175c9ea0e65e0e20ad8";
@@ -94,22 +94,22 @@ void loop()
 void checkGeneratorStatus()
 {
   String Send = "";
-  float R = 0.0000;
+  float R = 0.0010;
   if (pow(latitudeNow - latitudeLast, 2) + pow(longitudeNow - longitudeLast, 2) >= pow(R, 2))
   {
-    //Serial.println("Оно не в кругу");
+    Serial.println("Оно не в кругу");
     Send += "&lat=" + String(latitudeNow, 4);
     Send += "&lon=" + String(longitudeNow, 4);
     Send += "&countSatellite=" +  String(countSatelliteNow);
   }
-  //else   Serial.println("Оно в кругу");
+  else   Serial.println("Оно в кругу");
   if (Send != "")HttpSend(Send);
 
 }
 void HttpSend(String Send)
 {
   Send = String("AT+HTTPPARA=\"URL\",http://gt0008.herokuapp.com/api/v1/tracker/update?idTracker=" + ID + Send);
-  //Serial.println(Send);
+  Serial.println(Send);
   commandSIM("AT+HTTPINIT", 1000, false, DEBUG);
   commandSIM("AT+HTTPPARA=\"CID\",1", 1000, false, DEBUG);
   commandSIM(Send, 1000, false, DEBUG);
@@ -144,14 +144,18 @@ void eventSIM808(String dataSIM808)//события с модуля
 {
   int i = 0;
   String event = "";
+  long int t = millis();
   while (dataSIM808[i] != '+') {
     i++;
+      if ((t + 1000) < millis())break;
   }
   i++;
+ t = millis();
   while (dataSIM808[i] != '=')
   {
     event += dataSIM808[i];
     i++;
+    if ((t + 1000) < millis())break;
   }
   if (event == "CGPSINF")parseGPSdata(dataSIM808);
   else if (event = "HTTPACTION")parseHTTPresultCode(dataSIM808);
