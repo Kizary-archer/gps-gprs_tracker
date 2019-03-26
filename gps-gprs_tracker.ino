@@ -2,7 +2,7 @@
 
 SoftwareSerial SIM(2, 3);//RX, TX
 
-#define DEBUG true
+#define DEBUG false
 float latitudeNow = 0, longitudeNow = 0, latitudeLast = 0, longitudeLast = 0;
 int countSatelliteLast = 0, countSatelliteNow = 0;
 String ID = "5c8a8175c9ea0e65e0e20ad8";
@@ -22,19 +22,26 @@ void setup()  //настройка SIM808 при первом включении
   }
   Serial.println("\n********SIM808 SETTINGS***********");
   char *Sett[] = {
-    "AT+CFUN=1",
-    "AT+CGNSPWR=1",
-    "AT+CGNSSEQ=GGA",
     "AT+GSMBUSY=1",
     "AT+CLIP=0"
   };
-  for (byte i = 0 ; i < 5; i ++) commandSIM(Sett[i], 100, false, DEBUG);
+  for (byte i = 0 ; i < 2; i ++) commandSIM(Sett[i], 100, false, DEBUG);
 
   initGPRS();
+  initGPS();
   if (DEBUG)SIM808info(); //вывод информации о модуле
   Serial.println("******************************");
   Serial.println("Enter command:");
 
+}
+void initGPS()
+{
+    char *Sett[] = {
+    "AT+CGNSPWR=1",
+    "AT+CGPSRST=1",
+    "AT+CGNSSEQ=GGA"
+  };
+  for (byte i = 0 ; i < 3; i ++) commandSIM(Sett[i], 100, false, DEBUG);
 }
 void initGPRS()
 {
@@ -87,22 +94,22 @@ void loop()
 void checkGeneratorStatus()
 {
   String Send = "";
-  float R = 0.0010;
+  float R = 0.0000;
   if (pow(latitudeNow - latitudeLast, 2) + pow(longitudeNow - longitudeLast, 2) >= pow(R, 2))
   {
-    Serial.println("Оно не в кругу");
+    //Serial.println("Оно не в кругу");
     Send += "&lat=" + String(latitudeNow, 4);
     Send += "&lon=" + String(longitudeNow, 4);
     Send += "&countSatellite=" +  String(countSatelliteNow);
   }
-  else   Serial.println("Оно в кругу");
+  //else   Serial.println("Оно в кругу");
   if (Send != "")HttpSend(Send);
 
 }
 void HttpSend(String Send)
 {
   Send = String("AT+HTTPPARA=\"URL\",http://gt0008.herokuapp.com/api/v1/tracker/update?idTracker=" + ID + Send);
-  Serial.println(Send);
+  //Serial.println(Send);
   commandSIM("AT+HTTPINIT", 1000, false, DEBUG);
   commandSIM("AT+HTTPPARA=\"CID\",1", 1000, false, DEBUG);
   commandSIM(Send, 1000, false, DEBUG);
@@ -213,9 +220,9 @@ void parseHTTPresultCode(String dataHTTPSend)
     }
     i++;
   }
-  Serial.println(Code);
+  /*Serial.println(Code);
   if (Code.toInt() == 200) Serial.println("the message is delivered");
-  else Serial.println("the message is not delivered");
+  else Serial.println("the message is not delivered");*/
 }
 void serialListen()//отправка команд в ручном режиме
 {
