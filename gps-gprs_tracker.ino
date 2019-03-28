@@ -4,7 +4,7 @@ SoftwareSerial SIM(2, 3);//RX, TX
 
 #define DEBUG true
 float latitudeNow = 0, longitudeNow = 0, latitudeLast = 0, longitudeLast = 0;
-int countSatelliteLast = 0, countSatelliteNow = 0;
+int countSatellite = 0, countSatelliteNow = 0;
 String ID = "5c8a8175c9ea0e65e0e20ad8";
 boolean isFuel = true, isWork = true, isPayload = true;
 
@@ -72,7 +72,7 @@ void SIM808info()//вывод информации о настройках
   Serial.println("********SIM808 info***********");
   for (byte i = 0 ; i < 14; i += 2) {
     Serial.print(ATInfo[i]);
-    commandSIM(ATInfo[i + 1], 10, false, DEBUG);
+    commandSIM(ATInfo[i + 1], 100, false, DEBUG);
   }
 }
 
@@ -83,7 +83,7 @@ void loop()
   while (1)
   {
     serialListen();
-    if ((t + 10000) < millis()) // проверка состояния генератора каждую минуту
+    if ((t + 1000) < millis()) // проверка состояния генератора каждую минуту
     {
       commandSIM("AT+CGPSINF=2", 1000, true, DEBUG);
       checkGeneratorStatus();
@@ -95,12 +95,13 @@ void checkGeneratorStatus()
 {
   String Send = "";
   float R = 0.0010;
-  if ((pow(latitudeNow - latitudeLast, 2) + pow(longitudeNow - longitudeLast, 2) >= pow(R, 2)) || (countSatelliteNow > countSatelliteLast ))
+  if ((pow(latitudeNow - latitudeLast, 2) + pow(longitudeNow - longitudeLast, 2) >= pow(R, 2)) || (countSatelliteNow > countSatellite ))
   {
     Serial.println("Оно не в кругу");
     Send += "&lat=" + String(latitudeNow, 4);
     Send += "&lon=" + String(longitudeNow, 4);
     Send += "&countSatellite=" +  String(countSatelliteNow);
+    if(countSatelliteNow <= countSatellite )countSatellite = 0;
   }
   else   Serial.println("Оно в кругу");
   if (Send != "")HttpSend(Send);
@@ -199,7 +200,7 @@ void parseGPSdata(String dataSendGPS)
   {
     latitudeLast = latitudeNow;
     longitudeLast = longitudeNow;
-    countSatelliteLast = countSatelliteNow;
+    if(countSatelliteNow > countSatellite )countSatellite = countSatelliteNow;
     latitudeNow = atof(GPSdata[0].c_str());
     longitudeNow = atof(GPSdata[1].c_str());
     countSatelliteNow = GPSdata[3].toInt();
