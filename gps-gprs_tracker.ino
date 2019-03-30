@@ -3,9 +3,10 @@
 SoftwareSerial SIM(2, 3);//RX, TX
 
 #define DEBUG true
+#define SIM808_on 4 //вывод модуля из сна
 float latitudeNow = 0, longitudeNow = 0, latitudeLast = 0, longitudeLast = 0;
 int countSatellite = 0, countSatelliteNow = 0;
-String ID = "5c8a8175c9ea0e65e0e20ad8";
+String ID = "5c8a815260a9333f18ce0fa7";
 boolean isFuel = true, isWork = true, isPayload = true;
 
 void(* resetFunc) (void) = 0;//перезагрузка
@@ -14,11 +15,21 @@ void setup()  //настройка SIM808 при первом включении
 {
   SIM.begin(19200);
   Serial.begin(115200);
-
+  pinMode(SIM808_on, OUTPUT);
+  SIM.println("AT");
   long int t = millis();
+  Serial.print("Wait connect");
   while ( (t + 5000) > millis()) //ожидание включения модуля
   {
-    while (SIM.available()) Serial.write(SIM.read());
+    delay(500);
+    Serial.print(".");
+    if (SIM.available()) break;
+  }
+  if (!SIM.available()) {
+    digitalWrite(SIM808_on, HIGH);
+    delay(2000);
+    digitalWrite(SIM808_on, LOW);
+    resetFunc();
   }
   Serial.println("\n********SIM808 SETTINGS***********");
   char *Sett[] = {
@@ -83,7 +94,7 @@ void loop()
   while (1)
   {
     serialListen();
-    if ((t + 1000) < millis()) // проверка состояния генератора каждую минуту
+    if ((t + 60000) < millis()) // проверка состояния генератора каждую минуту
     {
       commandSIM("AT+CGPSINF=2", 1000, true, DEBUG);
       checkGeneratorStatus();
@@ -101,7 +112,7 @@ void checkGeneratorStatus()
     Send += "&lat=" + String(latitudeNow, 4);
     Send += "&lon=" + String(longitudeNow, 4);
     Send += "&countSatellite=" +  String(countSatelliteNow);
-    if(countSatelliteNow <= countSatellite )countSatellite = 0;
+    if (countSatelliteNow <= countSatellite )countSatellite = 0;
   }
   else   Serial.println("Оно в кругу");
   if (Send != "")HttpSend(Send);
@@ -200,7 +211,7 @@ void parseGPSdata(String dataSendGPS)
   {
     latitudeLast = latitudeNow;
     longitudeLast = longitudeNow;
-    if(countSatelliteNow > countSatellite )countSatellite = countSatelliteNow;
+    if (countSatelliteNow > countSatellite )countSatellite = countSatelliteNow;
     latitudeNow = atof(GPSdata[0].c_str());
     longitudeNow = atof(GPSdata[1].c_str());
     countSatelliteNow = GPSdata[3].toInt();
