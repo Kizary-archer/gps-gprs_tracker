@@ -11,7 +11,7 @@ SoftwareSerial SIM(2, 3);//RX, TX
 
 float latitudeNow = 0, longitudeNow = 0, latitudeLast = 0, longitudeLast = 0;
 int countSatellite = 0, countSatelliteNow = 0;
-String ID = "5c8a815260a9333f18ce0fa7";
+String ID = "5c8a814dc8cab2307ff8bc94";
 boolean isFuel, isWork = true, isPayload;
 
 void(* resetFunc) (void) = 0;//перезагрузка
@@ -202,14 +202,14 @@ void eventSIM808(String dataSIM808)//события с модуля
     i++;
     if ((t + 100) < millis())break;
   }
-  Serial.println(event);
-  if (event == "CGPSINF")parseGPSdata(dataSIM808);
-  else if (event == "HTTPACTION")parseHTTPresultCode(dataSIM808);
+  
+  if (event == "HTTPACTION")parseHTTPresultCode(dataSIM808);
+   if (event == "CGPSINF")parseGPSdata(dataSIM808);
 }
 
 void parseGPSdata(String dataSendGPS)
 {
-  // Serial.println(dataSendGPS);
+  Serial.println(dataSendGPS);
   String GPSdata[4]; //  latitude,longitude,state,satellite
   int coma[4] = {2, 4, 6, 7};
   byte CountComa = 0;
@@ -258,7 +258,9 @@ void parseGPSdata(String dataSendGPS)
 
 void parseHTTPresultCode(String dataHTTPSend)
 {
-   Serial.println(dataHTTPSend);
+
+  Serial.println("qqqqqqq");
+  Serial.println(dataHTTPSend);
   String Code = "";
   int i = 0, CountComa = 0;
   long int t = millis();
@@ -275,9 +277,9 @@ void parseHTTPresultCode(String dataHTTPSend)
     }
     i++;
   }
-   Serial.println(Code);
-    if (Code == "200") Serial.println("the message is delivered");
-    else Serial.println("the message is not delivered");
+  Serial.println(Code);
+ /* if (Code.toInt() == 200) Serial.println("the message is delivered");
+  else Serial.println("the message is not delivered");*/
 }
 
 void serialListen()//отправка команд в ручном режиме
