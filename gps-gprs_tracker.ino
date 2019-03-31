@@ -3,11 +3,16 @@
 SoftwareSerial SIM(2, 3);//RX, TX
 
 #define DEBUG true
+
+//digital pins
 #define SIM808_on 4 //вывод модуля из сна
+#define Pin_isFuel 5 //наличие топлива
+#define Pin_isPayload 6 //наличие нагрузки
+
 float latitudeNow = 0, longitudeNow = 0, latitudeLast = 0, longitudeLast = 0;
 int countSatellite = 0, countSatelliteNow = 0;
 String ID = "5c8a815260a9333f18ce0fa7";
-boolean isFuel = true, isWork = true, isPayload = true;
+boolean isFuel, isWork = true, isPayload;
 
 void(* resetFunc) (void) = 0;//перезагрузка
 
@@ -15,7 +20,13 @@ void setup()  //настройка SIM808 при первом включении
 {
   SIM.begin(19200);
   Serial.begin(115200);
+
   pinMode(SIM808_on, OUTPUT);
+  pinMode(Pin_isFuel, INPUT);
+  pinMode(Pin_isPayload, INPUT);
+  isFuel = digitalRead(Pin_isFuel);
+  isPayload = digitalRead(Pin_isPayload);
+
   SIM.println("AT");
   long int t = millis();
   Serial.print("Wait connect");
@@ -65,7 +76,7 @@ void initGPRS()
     "AT+SAPBR=2,1" //Проверяем как настроилось
   };
   for (byte i = 0 ; i < 6; i ++) {
-    commandSIM(gprsAT[i], 1000, false, DEBUG);
+    commandSIM(gprsAT[i], 2000, false, DEBUG);
   }
 }
 
@@ -94,7 +105,8 @@ void loop()
   while (1)
   {
     serialListen();
-    if ((t + 60000) < millis()) // проверка состояния генератора каждую минуту
+    //commandSIM("AT+CGPSINF=2", 5000, false, DEBUG);
+    if ((t + 5000) < millis()) // проверка состояния генератора каждую минуту
     {
       commandSIM("AT+CGPSINF=2", 1000, true, DEBUG);
       checkGeneratorStatus();
@@ -115,20 +127,32 @@ void checkGeneratorStatus()
     if (countSatelliteNow <= countSatellite )countSatellite = 0;
   }
   else   Serial.println("Оно в кругу");
+
+  if (digitalRead(Pin_isFuel) != isFuel)
+  {
+    isFuel = digitalRead(Pin_isFuel);
+    Send += "&isFuel=" +  String(isFuel);
+  }
+  if (digitalRead(Pin_isPayload) != isPayload)
+  {
+    isPayload = digitalRead(Pin_isPayload);
+    Send += "&isPayload=" +  String(isPayload);
+  }
+  //Send += "&isWork=" +  String(isWork);//временная проверка работы
   if (Send != "")HttpSend(Send);
 
 }
 void HttpSend(String Send)
 {
   Send = String("AT+HTTPPARA=\"URL\",http://gt0008.herokuapp.com/api/v1/tracker/update?idTracker=" + ID + Send);
-  //Serial.println(Send);
+  Serial.println(Send);
   commandSIM("AT+HTTPINIT", 100, false, DEBUG);
   commandSIM("AT+HTTPPARA=\"CID\",1", 100, false, DEBUG);
   commandSIM(Send, 100, false, DEBUG);
-  commandSIM("AT+HTTPACTION=0", 2000, true, DEBUG);
+  commandSIM("AT+HTTPACTION=0", 3000, true, DEBUG);
 }
 
-void commandSIM(String command, int timeout, boolean GetData, boolean debug) //вывод ответа на AT команду
+void commandSIM(String command, int timeout, boolean GetData, boolean debug) //отправка команды
 {
   String dataSIM808 = "";
   long int t = millis();
@@ -178,7 +202,7 @@ void eventSIM808(String dataSIM808)//события с модуля
     i++;
     if ((t + 100) < millis())break;
   }
-  //Serial.println(event);
+  Serial.println(event);
   if (event == "CGPSINF")parseGPSdata(dataSIM808);
   else if (event == "HTTPACTION")parseHTTPresultCode(dataSIM808);
 }
@@ -234,7 +258,7 @@ void parseGPSdata(String dataSendGPS)
 
 void parseHTTPresultCode(String dataHTTPSend)
 {
-  // Serial.println(dataHTTPSend);
+   Serial.println(dataHTTPSend);
   String Code = "";
   int i = 0, CountComa = 0;
   long int t = millis();
@@ -251,9 +275,9 @@ void parseHTTPresultCode(String dataHTTPSend)
     }
     i++;
   }
-  /* Serial.println(Code);
+   Serial.println(Code);
     if (Code == "200") Serial.println("the message is delivered");
-    else Serial.println("the message is not delivered");*/
+    else Serial.println("the message is not delivered");
 }
 
 void serialListen()//отправка команд в ручном режиме
