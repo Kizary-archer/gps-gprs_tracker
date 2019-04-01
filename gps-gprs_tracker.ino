@@ -1,8 +1,12 @@
 #include <SoftwareSerial.h>
+#include <EEPROM.h>
 
 SoftwareSerial SIM(2, 3);//RX, TX
 
 #define DEBUG true
+#define SaveisFuel 0
+#define SaveisWork 1
+#define SaveisPayload 2
 
 //digital pins
 #define SIM808_on 4 //вывод модуля из сна
@@ -24,8 +28,6 @@ void setup()  //настройка SIM808 при первом включении
   pinMode(SIM808_on, OUTPUT);
   pinMode(Pin_isFuel, INPUT);
   pinMode(Pin_isPayload, INPUT);
-  isFuel = digitalRead(Pin_isFuel);
-  isPayload = digitalRead(Pin_isPayload);
 
   SIM.println("AT");
   long int t = millis();
@@ -104,9 +106,9 @@ void loop()
   long int t = millis();
   while (1)
   {
+    commandSIM("AT+CGPSINF=2", 2000, false, DEBUG);
     serialListen();
-    //commandSIM("AT+CGPSINF=2", 5000, false, DEBUG);
-    if ((t + 5000) < millis()) // проверка состояния генератора каждую минуту
+    if ((t + 60000) < millis()) // проверка состояния генератора каждую минуту
     {
       commandSIM("AT+CGPSINF=2", 1000, true, DEBUG);
       checkGeneratorStatus();
@@ -128,24 +130,22 @@ void checkGeneratorStatus()
   }
   else   Serial.println("Оно в кругу");
 
-  if (digitalRead(Pin_isFuel) != isFuel)
+  if (digitalRead(Pin_isFuel) != EEPROM.read(SaveisFuel))
   {
     isFuel = digitalRead(Pin_isFuel);
     Send += "&isFuel=" +  String(isFuel);
   }
-  if (digitalRead(Pin_isPayload) != isPayload)
+  if (digitalRead(Pin_isPayload) != EEPROM.read(SaveisPayload))
   {
     isPayload = digitalRead(Pin_isPayload);
     Send += "&isPayload=" +  String(isPayload);
   }
-  //Send += "&isWork=" +  String(isWork);//временная проверка работы
   if (Send != "")HttpSend(Send);
 
 }
 void HttpSend(String Send)
 {
   Send = String("AT+HTTPPARA=\"URL\",http://gt0008.herokuapp.com/api/v1/tracker/update?idTracker=" + ID + Send);
-  Serial.println(Send);
   commandSIM("AT+HTTPINIT", 100, false, DEBUG);
   commandSIM("AT+HTTPPARA=\"CID\",1", 100, false, DEBUG);
   commandSIM(Send, 100, false, DEBUG);
@@ -202,14 +202,35 @@ void eventSIM808(String dataSIM808)//события с модуля
     i++;
     if ((t + 100) < millis())break;
   }
-  
-  if (event == "HTTPACTION")parseHTTPresultCode(dataSIM808);
-   if (event == "CGPSINF")parseGPSdata(dataSIM808);
+  if (event == "CGPSINF")parseGPSdata(dataSIM808);
+  if (event == "HTTPACTION")
+  {
+    String Code = "";
+    int i = 0, CountComa = 0;
+    long int t = millis();
+    while (i < dataSIM808.length())
+    {
+      if ((t + 1000) < millis())break;
+      if (dataSIM808[i] == ',') {
+        i++;
+        while (dataSIM808[i] != ',')
+        {
+          Code += dataSIM808[i];
+          i++;
+        }
+      }
+      i++;
+    }
+    if (Code == "200")
+    {
+      EEPROM.update(SaveisFuel, isFuel);
+      EEPROM.update(SaveisPayload, isPayload);
+    }
+    else resetFunc(); // перезагрузка при ошибке сети
+  }
 }
-
 void parseGPSdata(String dataSendGPS)
 {
-  Serial.println(dataSendGPS);
   String GPSdata[4]; //  latitude,longitude,state,satellite
   int coma[4] = {2, 4, 6, 7};
   byte CountComa = 0;
@@ -254,32 +275,6 @@ void parseGPSdata(String dataSendGPS)
     Serial.println("-------------");
   }
 
-}
-
-void parseHTTPresultCode(String dataHTTPSend)
-{
-
-  Serial.println("qqqqqqq");
-  Serial.println(dataHTTPSend);
-  String Code = "";
-  int i = 0, CountComa = 0;
-  long int t = millis();
-  while (i < dataHTTPSend.length())
-  {
-    if ((t + 1000) < millis())break;
-    if (dataHTTPSend[i] == ',') {
-      i++;
-      while (dataHTTPSend[i] != ',')
-      {
-        Code += dataHTTPSend[i];
-        i++;
-      }
-    }
-    i++;
-  }
-  Serial.println(Code);
- /* if (Code.toInt() == 200) Serial.println("the message is delivered");
-  else Serial.println("the message is not delivered");*/
 }
 
 void serialListen()//отправка команд в ручном режиме
