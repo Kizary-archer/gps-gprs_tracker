@@ -102,16 +102,15 @@ void SIM808info()//вывод информации о настройках
 
 void loop()
 {
-
   long int t = millis();
   while (1)
   {
     commandSIM("AT+CGPSINF=2", 2000, false, DEBUG);
     serialListen();
+    checkGeneratorStatus();
     if ((t + 60000) < millis()) // проверка состояния генератора каждую минуту
     {
       commandSIM("AT+CGPSINF=2", 1000, true, DEBUG);
-      checkGeneratorStatus();
       break;
     }
   }
@@ -149,7 +148,7 @@ void HttpSend(String Send)
   commandSIM("AT+HTTPINIT", 100, false, DEBUG);
   commandSIM("AT+HTTPPARA=\"CID\",1", 100, false, DEBUG);
   commandSIM(Send, 100, false, DEBUG);
-  commandSIM("AT+HTTPACTION=0", 3000, true, DEBUG);
+  commandSIM("AT+HTTPACTION=0", 5000, true, DEBUG);
 }
 
 void commandSIM(String command, int timeout, boolean GetData, boolean debug) //отправка команды
@@ -226,9 +225,9 @@ void eventSIM808(String dataSIM808)//события с модуля
       EEPROM.update(SaveisFuel, isFuel);
       EEPROM.update(SaveisPayload, isPayload);
     }
-    else resetFunc(); // перезагрузка при ошибке сети
+    else if ((Code == "601")||(Code == "603"))resetFunc(); // перезагрузка при ошибке сети
   }
-}
+}   
 void parseGPSdata(String dataSendGPS)
 {
   String GPSdata[4]; //  latitude,longitude,state,satellite
