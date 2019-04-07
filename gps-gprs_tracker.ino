@@ -11,7 +11,7 @@ SoftwareSerial SIM(2, 3);//RX, TX
 //digital pins
 #define SIM808_on 4 //вывод модуля из сна
 #define Pin_isFuel 5 //наличие топлива
-#define Pin_isPayload 6 //наличие нагрузки
+#define Pin_isPayload 8 //наличие нагрузки
 
 float latitudeNow = 0, longitudeNow = 0, latitudeLast = 0, longitudeLast = 0;
 int countSatellite = 0, countSatelliteNow = 0;
@@ -44,6 +44,7 @@ void setup()  //настройка SIM808 при первом включении
     digitalWrite(SIM808_on, LOW);
     resetFunc();
   }
+  delay(2000);
   Serial.println("\n********SIM808 SETTINGS***********");
   char *Sett[] = {
     "AT+GSMBUSY=1",
@@ -107,10 +108,10 @@ void loop()
   {
     commandSIM("AT+CGPSINF=2", 2000, false, DEBUG);
     serialListen();
-    checkGeneratorStatus();
     if ((t + 60000) < millis()) // проверка состояния генератора каждую минуту
     {
       commandSIM("AT+CGPSINF=2", 1000, true, DEBUG);
+      checkGeneratorStatus();
       break;
     }
   }
@@ -145,6 +146,7 @@ void checkGeneratorStatus()
 void HttpSend(String Send)
 {
   Send = String("AT+HTTPPARA=\"URL\",http://gt0008.herokuapp.com/api/v1/tracker/update?idTracker=" + ID + Send);
+  //Serial.println(Send);
   commandSIM("AT+HTTPINIT", 100, false, DEBUG);
   commandSIM("AT+HTTPPARA=\"CID\",1", 100, false, DEBUG);
   commandSIM(Send, 100, false, DEBUG);
@@ -225,9 +227,9 @@ void eventSIM808(String dataSIM808)//события с модуля
       EEPROM.update(SaveisFuel, isFuel);
       EEPROM.update(SaveisPayload, isPayload);
     }
-    else if ((Code == "601")||(Code == "603"))resetFunc(); // перезагрузка при ошибке сети
+    else if ((Code == "601") || (Code == "603"))resetFunc(); // перезагрузка при ошибке сети
   }
-}   
+}
 void parseGPSdata(String dataSendGPS)
 {
   String GPSdata[4]; //  latitude,longitude,state,satellite
