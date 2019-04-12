@@ -13,7 +13,7 @@ SoftwareSerial SIM(2, 3);//RX, TX
 #define Pin_isFuel 5 //наличие топлива
 #define Pin_isPayload 8 //наличие нагрузки
 
-float latitudeNow = 0, longitudeNow = 0, latitudeLast = 0, longitudeLast = 0;
+float latitudeNow = 0, longitudeNow = 0, latitude = 0, longitude = 0;
 int countSatellite = 0, countSatelliteNow = 0;
 String ID = "5c8a814dc8cab2307ff8bc94";
 boolean isFuel, isWork = true, isPayload;
@@ -106,9 +106,8 @@ void loop()
   long int t = millis();
   while (1)
   {
-    commandSIM("AT+CGPSINF=2", 2000, false, DEBUG);
     serialListen();
-    if ((t + 60000) < millis()) // проверка состояния генератора каждую минуту
+    if ((t + 1000) < millis()) // проверка состояния генератора каждую минуту
     {
       commandSIM("AT+CGPSINF=2", 1000, true, DEBUG);
       checkGeneratorStatus();
@@ -119,8 +118,8 @@ void loop()
 void checkGeneratorStatus()
 {
   String Send = "";
-  float R = 0.0010;
-  if ((pow(latitudeNow - latitudeLast, 2) + pow(longitudeNow - longitudeLast, 2) >= pow(R, 2)) || (countSatelliteNow > countSatellite ))
+  float R = 0.0001;
+  if ((pow(latitudeNow - latitude, 2) + pow(longitudeNow - longitude, 2) >= pow(R, 2)) || (countSatelliteNow > countSatellite ))
   {
     Serial.println("Оно не в кругу");
     Send += "&lat=" + String(latitudeNow, 4);
@@ -145,8 +144,7 @@ void checkGeneratorStatus()
 }
 void HttpSend(String Send)
 {
-  Send = String("AT+HTTPPARA=\"URL\",http://gt0008.herokuapp.com/api/v1/tracker/update?idTracker=" + ID + Send);
-  //Serial.println(Send);
+  Send = String("AT+HTTPPARA=\"URL\",http://gt001.herokuapp.com/api/v1/tracker/update?idTracker=" + ID + Send);
   commandSIM("AT+HTTPINIT", 100, false, DEBUG);
   commandSIM("AT+HTTPPARA=\"CID\",1", 100, false, DEBUG);
   commandSIM(Send, 100, false, DEBUG);
@@ -203,32 +201,35 @@ void eventSIM808(String dataSIM808)//события с модуля
     i++;
     if ((t + 100) < millis())break;
   }
+  if (event == "HTTPACTION")parseHTTPdata(dataSIM808);
   if (event == "CGPSINF")parseGPSdata(dataSIM808);
-  if (event == "HTTPACTION")
-  {
-    String Code = "";
-    int i = 0, CountComa = 0;
-    long int t = millis();
-    while (i < dataSIM808.length())
-    {
-      if ((t + 1000) < millis())break;
-      if (dataSIM808[i] == ',') {
-        i++;
-        while (dataSIM808[i] != ',')
-        {
-          Code += dataSIM808[i];
-          i++;
-        }
-      }
-      i++;
-    }
-    if (Code == "200")
-    {
-      EEPROM.update(SaveisFuel, isFuel);
-      EEPROM.update(SaveisPayload, isPayload);
-    }
-    else if ((Code == "601") || (Code == "603"))resetFunc(); // перезагрузка при ошибке сети
   }
+
+void parseHTTPdata(String dataSIM808)
+{
+  String Code = "";
+  int i = 0, CountComa = 0;
+  long int t = millis();
+  while (i < dataSIM808.length())
+  {
+    if ((t + 1000) < millis())break;
+    if (dataSIM808[i] == ',') {
+      i++;
+      while (dataSIM808[i] != ',')
+      {
+        Code += dataSIM808[i];
+        i++;
+      }
+    }
+    i++;
+  }
+  Serial.println(Code);
+  if (Code == "200")
+  {
+    EEPROM.update(SaveisFuel, isFuel);
+    EEPROM.update(SaveisPayload, isPayload);
+  }
+  else if ((Code == "601") || (Code == "302"))Serial.println(Code); // перезагрузка при ошибке сети
 }
 void parseGPSdata(String dataSendGPS)
 {
@@ -255,8 +256,8 @@ void parseGPSdata(String dataSendGPS)
   //convert
   if (GPSdata[2].toInt())
   {
-    latitudeLast = latitudeNow;
-    longitudeLast = longitudeNow;
+    latitude = latitudeNow;
+    longitude = longitudeNow;
     if (countSatelliteNow > countSatellite )countSatellite = countSatelliteNow;
     latitudeNow = atof(GPSdata[0].c_str());
     longitudeNow = atof(GPSdata[1].c_str());
