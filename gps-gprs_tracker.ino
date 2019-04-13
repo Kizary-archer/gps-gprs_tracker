@@ -13,8 +13,8 @@ SoftwareSerial SIM(2, 3);//RX, TX
 #define Pin_isPayload 8 //наличие нагрузки
 
 float latitudeNow = 0, longitudeNow = 0, latitude = 0, longitude = 0;
-int countSatellite = 0, countSatelliteNow = 0;
-String ID = "5c8a814dc8cab2307ff8bc94";
+int countSatellite = 0, countSatelliteNow = 0, state = 0;
+String ID = "5c8a8148e820b85d07571866";
 boolean isFuel, isWork = true, isPayload, DEBUG = false;
 
 void(* resetFunc) (void) = 0;//перезагрузка
@@ -43,13 +43,13 @@ void setup()  //настройка SIM808 при первом включении
     digitalWrite(SIM808_on, LOW);
     resetFunc();
   }
-  Serial.println("DEBUG (y/n)");
+  Serial.println("\nDEBUG (y/n)");
   t = millis();
   while ( (t + 5000) > millis()) //ожидание включения модуля
   {
     if (char(Serial.read()) == 'y') DEBUG = true;
   }
-  Serial.println("\nDEBUG: ");
+  Serial.println("DEBUG: ");
   Serial.println(DEBUG);
   Serial.println("\n********SIM808 SETTINGS***********");
   char *Sett[] = {
@@ -113,12 +113,11 @@ void loop()
   while (1)
   {
     serialListen();
-    if ((t + 1000) < millis()) // проверка состояния генератора каждую минуту
+    checkGeneratorStatus();
+    delay(1000);
+    if ((t + 30000) < millis()) // проверка состояния генератора каждую минуту
     {
       GPSdata();
-      checkGeneratorStatus();
-      delay(100);
-      //commandSIM("AT+HTTPACTION=2", 1000, false, DEBUG);
       break;
     }
   }
@@ -127,24 +126,28 @@ void loop()
 void GPSdata()
 {
   String dataSendGPS = "";
-  long int t = millis();
   String GPSdata[4]; //  latitude,longitude,state,satellite
   int coma[4] = {2, 4, 6, 7};
   byte CountComa = 0;
   int i = 0, j = 0, timeout = 1000;
-  SIM.println("AT+HTTPACTION=2");
+  SIM.println("AT+CGPSINF=2");
+  long int t = millis();
   while (!SIM.available())//ожидание ответа
-    if ((t + 5000) < millis())break;
-  while ( (t + timeout) > millis())
-    while (SIM.available())
-      dataSendGPS += char(SIM.read());
+    if ((t + 5000) < millis())
+      if (repeatSend("AT"))break;
+
+  while (SIM.available())
+  {
+    dataSendGPS += char(SIM.read());
+    delay(10);
+  }
 
   t = millis();
   while (i < dataSendGPS.length())
   {
     if ((t + 1000) < millis())break;
-    if (dataSendGPS[i] == ',')CountComa++;
 
+    if (dataSendGPS[i] == ',')CountComa++;
     i++;
     if (coma[j] == CountComa) {
       while (dataSendGPS[i] != ',')
@@ -156,7 +159,8 @@ void GPSdata()
     }
   }
   //convert
-  if (GPSdata[2].toInt())
+  state = GPSdata[2].toInt();
+  if (state)
   {
     latitude = latitudeNow;
     longitude = longitudeNow;
@@ -183,17 +187,18 @@ void GPSdata()
 void checkGeneratorStatus()
 {
   String Send = "";
-  float R = 0.0001;
-  commandSIM("AT+CGPSINF=2", 1000, true, DEBUG); //обновление координат
-  if ((pow(latitudeNow - latitude, 2) + pow(longitudeNow - longitude, 2) >= pow(R, 2)) || (countSatelliteNow > countSatellite ))
+  float R = 0.0010;
+  if (state)
   {
-    Serial.println("Оно не в кругу");
-    Send += "&lat=" + String(latitudeNow, 4);
-    Send += "&lon=" + String(longitudeNow, 4);
-    Send += "&countSatellite=" +  String(countSatelliteNow);
-    if (countSatelliteNow <= countSatellite )countSatellite = 0;
+    state = 0;
+    if ((pow(latitudeNow - latitude, 2) + pow(longitudeNow - longitude, 2) >= pow(R, 2)) || (countSatelliteNow > countSatellite ))
+    {
+      Send += "&lat=" + String(latitudeNow, 4);
+      Send += "&lon=" + String(longitudeNow, 4);
+      Send += "&countSatellite=" +  String(countSatelliteNow);
+      if (countSatelliteNow <= countSatellite )countSatellite = 0;
+    }
   }
-  else   Serial.println("Оно в кругу");
 
   if (digitalRead(Pin_isFuel) != EEPROM.read(SaveisFuel))
   {
@@ -214,7 +219,7 @@ void HttpSend(String Send)
   commandSIM("AT+HTTPINIT", 100, false, DEBUG);
   commandSIM("AT+HTTPPARA=\"CID\",1", 100, false, DEBUG);
   commandSIM(Send, 100, false, DEBUG);
-  commandSIM("AT+HTTPACTION=0", 5000, false, DEBUG);
+  commandSIM("AT+HTTPACTION=0", 5000, true, DEBUG);
 }
 
 void commandSIM(String command, int timeout, boolean GetData, boolean debug) //отправка команды
@@ -245,6 +250,9 @@ bool repeatSend(String command)
     {
       Serial.println("Error connect to SIM808...reset");
       delay(1000);
+      digitalWrite(SIM808_on, HIGH);
+      delay(2000);
+      digitalWrite(SIM808_on, LOW);
       resetFunc();
     }
   }
@@ -288,13 +296,18 @@ void parseHTTPdata(String dataSIM808)
     }
     i++;
   }
-  Serial.println(Code);
   if (Code == "200")
   {
     EEPROM.update(SaveisFuel, isFuel);
     EEPROM.update(SaveisPayload, isPayload);
   }
-  else if ((Code == "601") || (Code == "603"))resetFunc(); // перезагрузка при ошибке сети
+  else if ((Code == "601") || (Code == "603")|| (Code == "604"))
+  {
+    digitalWrite(SIM808_on, HIGH);
+    delay(2000);
+    digitalWrite(SIM808_on, LOW);
+    resetFunc(); // перезагрузка при ошибке сети
+  }
 }
 
 void serialListen()//отправка команд в ручном режиме
