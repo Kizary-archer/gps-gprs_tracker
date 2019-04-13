@@ -3,7 +3,6 @@
 
 SoftwareSerial SIM(2, 3);//RX, TX
 
-#define DEBUG true
 #define SaveisFuel 0
 #define SaveisWork 1
 #define SaveisPayload 2
@@ -16,7 +15,7 @@ SoftwareSerial SIM(2, 3);//RX, TX
 float latitudeNow = 0, longitudeNow = 0, latitude = 0, longitude = 0;
 int countSatellite = 0, countSatelliteNow = 0;
 String ID = "5c8a814dc8cab2307ff8bc94";
-boolean isFuel, isWork = true, isPayload;
+boolean isFuel, isWork = true, isPayload, DEBUG = false;
 
 void(* resetFunc) (void) = 0;//перезагрузка
 
@@ -44,7 +43,14 @@ void setup()  //настройка SIM808 при первом включении
     digitalWrite(SIM808_on, LOW);
     resetFunc();
   }
-  delay(2000);
+  Serial.println("DEBUG (y/n)");
+  t = millis();
+  while ( (t + 5000) > millis()) //ожидание включения модуля
+  {
+    if (char(Serial.read()) == 'y') DEBUG = true;
+  }
+  Serial.println("\nDEBUG: ");
+  Serial.println(DEBUG);
   Serial.println("\n********SIM808 SETTINGS***********");
   char *Sett[] = {
     "AT+GSMBUSY=1",
@@ -109,13 +115,71 @@ void loop()
     serialListen();
     if ((t + 1000) < millis()) // проверка состояния генератора каждую минуту
     {
+      GPSdata();
       checkGeneratorStatus();
-      commandSIM("AT+HTTPACTION=2", 1000, true, DEBUG);
       delay(100);
+      //commandSIM("AT+HTTPACTION=2", 1000, false, DEBUG);
       break;
     }
   }
 }
+
+void GPSdata()
+{
+  String dataSendGPS = "";
+  long int t = millis();
+  String GPSdata[4]; //  latitude,longitude,state,satellite
+  int coma[4] = {2, 4, 6, 7};
+  byte CountComa = 0;
+  int i = 0, j = 0, timeout = 1000;
+  SIM.println("AT+HTTPACTION=2");
+  while (!SIM.available())//ожидание ответа
+    if ((t + 5000) < millis())break;
+  while ( (t + timeout) > millis())
+    while (SIM.available())
+      dataSendGPS += char(SIM.read());
+
+  t = millis();
+  while (i < dataSendGPS.length())
+  {
+    if ((t + 1000) < millis())break;
+    if (dataSendGPS[i] == ',')CountComa++;
+
+    i++;
+    if (coma[j] == CountComa) {
+      while (dataSendGPS[i] != ',')
+      {
+        GPSdata[j] += dataSendGPS[i];
+        i++;
+      }
+      j++;
+    }
+  }
+  //convert
+  if (GPSdata[2].toInt())
+  {
+    latitude = latitudeNow;
+    longitude = longitudeNow;
+    if (countSatelliteNow > countSatellite )countSatellite = countSatelliteNow;
+    latitudeNow = atof(GPSdata[0].c_str());
+    longitudeNow = atof(GPSdata[1].c_str());
+    countSatelliteNow = GPSdata[3].toInt();
+  }
+  if (DEBUG)
+  {
+    Serial.println("-------------");
+    Serial.print("latitude: ");
+    Serial.println(latitudeNow, 4);
+    Serial.print("longitude: ");
+    Serial.println(longitudeNow, 4);
+    Serial.print("state: ");
+    Serial.println(GPSdata[2]);
+    Serial.print("satellite: ");
+    Serial.println(countSatelliteNow);
+    Serial.println("-------------");
+  }
+}
+
 void checkGeneratorStatus()
 {
   String Send = "";
@@ -204,7 +268,6 @@ void eventSIM808(String dataSIM808)//события с модуля
     if ((t + 100) < millis())break;
   }
   if (event == "HTTPACTION")parseHTTPdata(dataSIM808);
-  else if (event == "CGPSINF")parseGPSdata(dataSIM808);
 }
 
 void parseHTTPdata(String dataSIM808)
@@ -232,53 +295,6 @@ void parseHTTPdata(String dataSIM808)
     EEPROM.update(SaveisPayload, isPayload);
   }
   else if ((Code == "601") || (Code == "603"))resetFunc(); // перезагрузка при ошибке сети
-}
-void parseGPSdata(String dataSendGPS)
-{
-  String GPSdata[4]; //  latitude,longitude,state,satellite
-  int coma[4] = {2, 4, 6, 7};
-  byte CountComa = 0;
-  int i = 0, j = 0, L = dataSendGPS.length();
-  long int t = millis();
-  while (i < L)
-  {
-    if ((t + 1000) < millis())break;
-    if (dataSendGPS[i] == ',')CountComa++;
-
-    i++;
-    if (coma[j] == CountComa) {
-      while (dataSendGPS[i] != ',')
-      {
-        GPSdata[j] += dataSendGPS[i];
-        i++;
-      }
-      j++;
-    }
-  }
-  //convert
-  if (GPSdata[2].toInt())
-  {
-    latitude = latitudeNow;
-    longitude = longitudeNow;
-    if (countSatelliteNow > countSatellite )countSatellite = countSatelliteNow;
-    latitudeNow = atof(GPSdata[0].c_str());
-    longitudeNow = atof(GPSdata[1].c_str());
-    countSatelliteNow = GPSdata[3].toInt();
-  }
-  if (DEBUG)
-  {
-    Serial.println("-------------");
-    Serial.print("latitude: ");
-    Serial.println(latitudeNow, 4);
-    Serial.print("longitude: ");
-    Serial.println(longitudeNow, 4);
-    Serial.print("state: ");
-    Serial.println(GPSdata[2]);
-    Serial.print("satellite: ");
-    Serial.println(countSatelliteNow);
-    Serial.println("-------------");
-  }
-
 }
 
 void serialListen()//отправка команд в ручном режиме
