@@ -109,8 +109,9 @@ void loop()
     serialListen();
     if ((t + 1000) < millis()) // проверка состояния генератора каждую минуту
     {
-      commandSIM("AT+CGPSINF=2", 1000, true, DEBUG);
       checkGeneratorStatus();
+      commandSIM("AT+HTTPACTION=2", 1000, true, DEBUG);
+      delay(100);
       break;
     }
   }
@@ -119,6 +120,7 @@ void checkGeneratorStatus()
 {
   String Send = "";
   float R = 0.0001;
+  commandSIM("AT+CGPSINF=2", 1000, true, DEBUG); //обновление координат
   if ((pow(latitudeNow - latitude, 2) + pow(longitudeNow - longitude, 2) >= pow(R, 2)) || (countSatelliteNow > countSatellite ))
   {
     Serial.println("Оно не в кругу");
@@ -148,7 +150,7 @@ void HttpSend(String Send)
   commandSIM("AT+HTTPINIT", 100, false, DEBUG);
   commandSIM("AT+HTTPPARA=\"CID\",1", 100, false, DEBUG);
   commandSIM(Send, 100, false, DEBUG);
-  commandSIM("AT+HTTPACTION=0", 5000, true, DEBUG);
+  commandSIM("AT+HTTPACTION=0", 5000, false, DEBUG);
 }
 
 void commandSIM(String command, int timeout, boolean GetData, boolean debug) //отправка команды
@@ -202,8 +204,8 @@ void eventSIM808(String dataSIM808)//события с модуля
     if ((t + 100) < millis())break;
   }
   if (event == "HTTPACTION")parseHTTPdata(dataSIM808);
-  if (event == "CGPSINF")parseGPSdata(dataSIM808);
-  }
+  else if (event == "CGPSINF")parseGPSdata(dataSIM808);
+}
 
 void parseHTTPdata(String dataSIM808)
 {
@@ -229,7 +231,7 @@ void parseHTTPdata(String dataSIM808)
     EEPROM.update(SaveisFuel, isFuel);
     EEPROM.update(SaveisPayload, isPayload);
   }
-  else if ((Code == "601") || (Code == "302"))Serial.println(Code); // перезагрузка при ошибке сети
+  else if ((Code == "601") || (Code == "603"))resetFunc(); // перезагрузка при ошибке сети
 }
 void parseGPSdata(String dataSendGPS)
 {
