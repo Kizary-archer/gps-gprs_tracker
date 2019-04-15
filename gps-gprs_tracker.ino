@@ -14,7 +14,7 @@ SoftwareSerial SIM(2, 3);//RX, TX
 
 float latitudeNow = 0, longitudeNow = 0, latitude = 0, longitude = 0;
 int countSatellite = 0, countSatelliteNow = 0, state = 0;
-String ID = "5c8a8148e820b85d07571866";
+String ID = "5c8a81519b0910c4a0529ef9";
 boolean isFuel, isWork = true, isPayload, DEBUG = false;
 
 void(* resetFunc) (void) = 0;//перезагрузка
@@ -78,9 +78,9 @@ void initGPRS()
 {
   char *gprsAT[] = {
     "AT+SAPBR=3,1,\"CONTYPE\",\"GPRS\"",  //Установка настроек подключения
-    "AT+SAPBR=3,1,\"APN\",\"internet.beeline.ru\"",
-    "AT+SAPBR=3,1,\"USER\",\"beeline\"",
-    "AT+SAPBR=3,1,\"PWD\",\"beeline\"",
+    "AT+SAPBR=3,1,\"APN\",\"internet.tele2.ru\"",
+    "AT+SAPBR=3,1,\"USER\",\"tele2\"",
+    "AT+SAPBR=3,1,\"PWD\",\"tele2\"",
     "AT+SAPBR=1,1",  //Устанавливаем GPRS соединение
     "AT+SAPBR=2,1" //Проверяем как настроилось
   };
@@ -162,8 +162,6 @@ void GPSdata()
   state = GPSdata[2].toInt();
   if (state)
   {
-    latitude = latitudeNow;
-    longitude = longitudeNow;
     if (countSatelliteNow > countSatellite )countSatellite = countSatelliteNow;
     latitudeNow = atof(GPSdata[0].c_str());
     longitudeNow = atof(GPSdata[1].c_str());
@@ -177,7 +175,7 @@ void GPSdata()
     Serial.print("longitude: ");
     Serial.println(longitudeNow, 4);
     Serial.print("state: ");
-    Serial.println(GPSdata[2]);
+    Serial.println(state);
     Serial.print("satellite: ");
     Serial.println(countSatelliteNow);
     Serial.println("-------------");
@@ -197,6 +195,8 @@ void checkGeneratorStatus()
       Send += "&lon=" + String(longitudeNow, 4);
       Send += "&countSatellite=" +  String(countSatelliteNow);
       if (countSatelliteNow <= countSatellite )countSatellite = 0;
+      latitude = latitudeNow;
+      longitude = longitudeNow;
     }
   }
 
@@ -301,7 +301,7 @@ void parseHTTPdata(String dataSIM808)
     EEPROM.update(SaveisFuel, isFuel);
     EEPROM.update(SaveisPayload, isPayload);
   }
-  else if ((Code == "601") || (Code == "603")|| (Code == "604"))
+  else if ((Code == "601") || (Code == "603") || (Code == "604") || (Code == "302"))
   {
     digitalWrite(SIM808_on, HIGH);
     delay(2000);
