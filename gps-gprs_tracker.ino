@@ -14,7 +14,7 @@ SoftwareSerial SIM(2, 3);//RX, TX
 
 float latitudeNow = 0, longitudeNow = 0, latitude = 0, longitude = 0;
 int countSatellite = 0, countSatelliteNow = 0, state = 0;
-String ID = "5c8a81519b0910c4a0529ef9";
+String ID = "5c8a81743b615737a9760b05";
 boolean isFuel, isWork = true, isPayload, DEBUG = false;
 
 void(* resetFunc) (void) = 0;//перезагрузка
@@ -195,8 +195,6 @@ void checkGeneratorStatus()
       Send += "&lon=" + String(longitudeNow, 4);
       Send += "&countSatellite=" +  String(countSatelliteNow);
       if (countSatelliteNow <= countSatellite )countSatellite = 0;
-      latitude = latitudeNow;
-      longitude = longitudeNow;
     }
   }
 
@@ -219,7 +217,7 @@ void HttpSend(String Send)
   commandSIM("AT+HTTPINIT", 100, false, DEBUG);
   commandSIM("AT+HTTPPARA=\"CID\",1", 100, false, DEBUG);
   commandSIM(Send, 100, false, DEBUG);
-  commandSIM("AT+HTTPACTION=0", 5000, true, DEBUG);
+  commandSIM("AT+HTTPACTION=0", 10000, true, DEBUG);
 }
 
 void commandSIM(String command, int timeout, boolean GetData, boolean debug) //отправка команды
@@ -296,12 +294,15 @@ void parseHTTPdata(String dataSIM808)
     }
     i++;
   }
+  //Serial.print(Code);
   if (Code == "200")
   {
     EEPROM.update(SaveisFuel, isFuel);
     EEPROM.update(SaveisPayload, isPayload);
+    latitude = latitudeNow;
+    longitude = longitudeNow;
   }
-  else if ((Code == "601") || (Code == "603") || (Code == "604") || (Code == "302"))
+  else
   {
     digitalWrite(SIM808_on, HIGH);
     delay(2000);
