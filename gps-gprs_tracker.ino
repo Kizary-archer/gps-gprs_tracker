@@ -11,11 +11,12 @@ SoftwareSerial SIM(2, 3);//RX, TX
 #define SIM808_on 4 //вывод модуля из сна
 #define Pin_isFuel 5 //наличие топлива
 #define Pin_isPayload 8 //наличие нагрузки
+#define Pin_isWork 12 //работа генератора
 
 float latitudeNow = 0, longitudeNow = 0, latitude = 0, longitude = 0;
 int countSatellite = 0, countSatelliteNow = 0, state = 0;
 String ID = "5c8a81743b615737a9760b05";
-boolean isFuel, isWork = true, isPayload, DEBUG = false;
+boolean isFuel, isWork, isPayload, DEBUG = false;
 
 void(* resetFunc) (void) = 0;//перезагрузка
 
@@ -27,6 +28,7 @@ void setup()  //настройка SIM808 при первом включении
   pinMode(SIM808_on, OUTPUT);
   pinMode(Pin_isFuel, INPUT);
   pinMode(Pin_isPayload, INPUT);
+  pinMode(Pin_isWork, INPUT);
 
   SIM.println("AT");
   long int t = millis();
@@ -113,11 +115,11 @@ void loop()
   while (1)
   {
     serialListen();
-    checkGeneratorStatus();
     delay(1000);
     if ((t + 30000) < millis()) // проверка состояния генератора каждую минуту
     {
       GPSdata();
+      checkGeneratorStatus();
       break;
     }
   }
@@ -207,6 +209,11 @@ void checkGeneratorStatus()
   {
     isPayload = digitalRead(Pin_isPayload);
     Send += "&isPayload=" +  String(isPayload);
+  }
+  if (digitalRead(Pin_isWork) != EEPROM.read(SaveisWork))
+  {
+    isWork = digitalRead(Pin_isWork);
+    Send += "&isWork=" +  String(isWork);
   }
   if (Send != "")HttpSend(Send);
 
@@ -299,6 +306,7 @@ void parseHTTPdata(String dataSIM808)
   {
     EEPROM.update(SaveisFuel, isFuel);
     EEPROM.update(SaveisPayload, isPayload);
+    EEPROM.update(SaveisWork, isWork);
     latitude = latitudeNow;
     longitude = longitudeNow;
   }
