@@ -35,17 +35,17 @@ void setup()  //настройка SIM808 при первом включении
   Serial.print("Wait connect");
   while ( (t + 5000) > millis()) //ожидание включения модуля
   {
-    delay(500);
+    timerDelay(500);
     Serial.print(".");
     if (SIM.available()) break;
   }
   if (!SIM.available()) {
     digitalWrite(SIM808_on, HIGH);
-    delay(2000);
+    timerDelay(2000);
     digitalWrite(SIM808_on, LOW);
     resetFunc();
   }
-  Serial.println("\nDEBUG (y/n)");
+  Serial.print("\nDEBUG (y/n)");
   t = millis();
   while ( (t + 5000) > millis()) //ожидание включения модуля
   {
@@ -115,7 +115,6 @@ void loop()
   while (1)
   {
     serialListen();
-    delay(1000);
     if ((t + 30000) < millis()) // проверка состояния генератора каждую минуту
     {
       GPSdata();
@@ -141,7 +140,7 @@ void GPSdata()
   while (SIM.available())
   {
     dataSendGPS += char(SIM.read());
-    delay(10);
+    timerDelay(10);
   }
 
   t = millis();
@@ -200,7 +199,7 @@ void checkGeneratorStatus()
     }
   }
 
-  if (digitalRead(Pin_isFuel) != EEPROM.read(SaveisFuel))
+/*  if (digitalRead(Pin_isFuel) != EEPROM.read(SaveisFuel))
   {
     isFuel = digitalRead(Pin_isFuel);
     Send += "&isFuel=" +  String(isFuel);
@@ -209,7 +208,7 @@ void checkGeneratorStatus()
   {
     isPayload = digitalRead(Pin_isPayload);
     Send += "&isPayload=" +  String(isPayload);
-  }
+  }*/
   if (digitalRead(Pin_isWork) != EEPROM.read(SaveisWork))
   {
     isWork = digitalRead(Pin_isWork);
@@ -246,7 +245,7 @@ void commandSIM(String command, int timeout, boolean GetData, boolean debug) //�
 bool repeatSend(String command)
 {
   Serial.println("Error connect to SIM808...repeat send");
-  delay(1000);
+  timerDelay(1000);
   SIM.println(command);
   long int t = millis();
   while (!SIM.available())//ожидание ответа
@@ -254,9 +253,9 @@ bool repeatSend(String command)
     if ((t + 5000) < millis())
     {
       Serial.println("Error connect to SIM808...reset");
-      delay(1000);
+      timerDelay(1000);
       digitalWrite(SIM808_on, HIGH);
-      delay(2000);
+      timerDelay(2000);
       digitalWrite(SIM808_on, LOW);
       resetFunc();
     }
@@ -313,14 +312,22 @@ void parseHTTPdata(String dataSIM808)
   else
   {
     digitalWrite(SIM808_on, HIGH);
-    delay(2000);
+    timerDelay(2000);
     digitalWrite(SIM808_on, LOW);
     resetFunc(); // перезагрузка при ошибке сети
   }
 }
 
-void serialListen()//отправка команд в ручном режиме
+void timerDelay(unsigned short t)
 {
+  unsigned long ts = millis();
+  while (1) {
+    unsigned long currentMillis = millis();
+    if (currentMillis - ts > t)break;
+  }
+}
+void serialListen()//отправка команд в ручном режиме
+  {
   while (Serial.available())
   {
     SIM.write(Serial.read());
@@ -331,4 +338,4 @@ void serialListen()//отправка команд в ручном режиме
     Serial.write(SIM.read());
     delay(10);
   }
-}
+  }
