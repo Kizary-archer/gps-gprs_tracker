@@ -1,5 +1,7 @@
 #include <SoftwareSerial.h>
 #include <EEPROM.h>
+#include <MsTimer2.h>
+#include <avr/wdt.h>
 
 SoftwareSerial SIM(2, 3);//RX, TX
 
@@ -18,8 +20,6 @@ int countSatellite = 0, countSatelliteNow = 0, state = 0;
 String ID = "5c8a81743b615737a9760b05";
 boolean isFuel, isWork, isPayload, DEBUG = false;
 
-void(* resetFunc) (void) = 0;//перезагрузка
-
 void setup()  //настройка SIM808 при первом включении
 {
   SIM.begin(19200);
@@ -30,9 +30,13 @@ void setup()  //настройка SIM808 при первом включении
   pinMode(Pin_isPayload, INPUT);
   pinMode(Pin_isWork, INPUT);
 
+  MsTimer2::set(200, timerInterupt);
+  MsTimer2::start();
+  wdt_enable(WDTO_1S);
+
   SIM.println("AT");
   long int t = millis();
-  Serial.print("Wait connect");
+  Serial.print("\nWait connect");
   while ( (t + 5000) > millis()) //ожидание включения модуля
   {
     timerDelay(500);
@@ -43,7 +47,7 @@ void setup()  //настройка SIM808 при первом включении
     digitalWrite(SIM808_on, HIGH);
     timerDelay(2000);
     digitalWrite(SIM808_on, LOW);
-    resetFunc();
+    MsTimer2::stop();
   }
   Serial.print("\nDEBUG (y/n)");
   t = millis();
@@ -199,16 +203,16 @@ void checkGeneratorStatus()
     }
   }
 
-/*  if (digitalRead(Pin_isFuel) != EEPROM.read(SaveisFuel))
-  {
-    isFuel = digitalRead(Pin_isFuel);
-    Send += "&isFuel=" +  String(isFuel);
-  }
-  if (digitalRead(Pin_isPayload) != EEPROM.read(SaveisPayload))
-  {
-    isPayload = digitalRead(Pin_isPayload);
-    Send += "&isPayload=" +  String(isPayload);
-  }*/
+  /*  if (digitalRead(Pin_isFuel) != EEPROM.read(SaveisFuel))
+    {
+      isFuel = digitalRead(Pin_isFuel);
+      Send += "&isFuel=" +  String(isFuel);
+    }
+    if (digitalRead(Pin_isPayload) != EEPROM.read(SaveisPayload))
+    {
+      isPayload = digitalRead(Pin_isPayload);
+      Send += "&isPayload=" +  String(isPayload);
+    }*/
   if (digitalRead(Pin_isWork) != EEPROM.read(SaveisWork))
   {
     isWork = digitalRead(Pin_isWork);
@@ -257,7 +261,7 @@ bool repeatSend(String command)
       digitalWrite(SIM808_on, HIGH);
       timerDelay(2000);
       digitalWrite(SIM808_on, LOW);
-      resetFunc();
+      MsTimer2::stop();
     }
   }
   return true;
@@ -314,7 +318,7 @@ void parseHTTPdata(String dataSIM808)
     digitalWrite(SIM808_on, HIGH);
     timerDelay(2000);
     digitalWrite(SIM808_on, LOW);
-    resetFunc(); // перезагрузка при ошибке сети
+    MsTimer2::stop();
   }
 }
 
@@ -327,7 +331,7 @@ void timerDelay(unsigned short t)
   }
 }
 void serialListen()//отправка команд в ручном режиме
-  {
+{
   while (Serial.available())
   {
     SIM.write(Serial.read());
@@ -338,4 +342,8 @@ void serialListen()//отправка команд в ручном режиме
     Serial.write(SIM.read());
     delay(10);
   }
-  }
+}
+void  timerInterupt()
+{
+  wdt_reset();
+}
