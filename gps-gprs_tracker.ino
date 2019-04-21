@@ -118,7 +118,7 @@ void loop()
   while (1)
   {
     serialListen();
-    if ((t + 30000) < millis()) // проверка состояния генератора каждую минуту
+    if ((t + 10000) < millis()) // проверка состояния генератора каждую минуту
     {
       GPSdata();
       checkGeneratorStatus();
