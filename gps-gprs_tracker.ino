@@ -1,5 +1,7 @@
 #include <SoftwareSerial.h>
 #include <EEPROM.h>
+#include <MsTimer2.h>
+#include <avr/wdt.h>
 
 SoftwareSerial SIM(2, 3);//RX, TX
 
@@ -15,9 +17,7 @@ SoftwareSerial SIM(2, 3);//RX, TX
 float latitudeNow = 0, longitudeNow = 0, latitude = 0, longitude = 0;
 int countSatellite = 0, countSatelliteNow = 0, state = 0;
 String ID = "5c8a8151d25cb0459b826ed1";
-boolean isFuel, isWork, isPayload, DEBUG = false;
-
-void(* resetFunc) (void) = 0;//перезагрузка
+boolean isFuel, isWork, DEBUG = false;
 
 void setup()  //настройка SIM808 при первом включении
 {
@@ -28,9 +28,13 @@ void setup()  //настройка SIM808 при первом включении
   pinMode(Pin_isFuel, INPUT);
   pinMode(Pin_isWork, INPUT);
 
+  MsTimer2::set(200, timerInterupt);
+  MsTimer2::start();
+  wdt_enable(WDTO_4S);
+
   SIM.println("AT");
   long int t = millis();
-  Serial.print("Wait connect");
+  Serial.print("\nWait connect");
   while ( (t + 5000) > millis()) //ожидание включения модуля
   {
     delay(500);
@@ -41,7 +45,8 @@ void setup()  //настройка SIM808 при первом включении
     digitalWrite(SIM808_on, HIGH);
     delay(2000);
     digitalWrite(SIM808_on, LOW);
-    resetFunc();
+    MsTimer2::stop();
+    delay(4000);
   }
   Serial.println("\nDEBUG (y/n)");
   t = millis();
@@ -113,7 +118,6 @@ void loop()
   while (1)
   {
     serialListen();
-    delay(1000);
     if ((t + 30000) < millis()) // проверка состояния генератора каждую минуту
     {
       GPSdata();
@@ -239,7 +243,6 @@ void commandSIM(String command, int timeout, boolean GetData, boolean debug) //�
 bool repeatSend(String command)
 {
   Serial.println("Error connect to SIM808...repeat send");
-  delay(1000);
   SIM.println(command);
   long int t = millis();
   while (!SIM.available())//ожидание ответа
@@ -247,11 +250,11 @@ bool repeatSend(String command)
     if ((t + 5000) < millis())
     {
       Serial.println("Error connect to SIM808...reset");
-      delay(1000);
       digitalWrite(SIM808_on, HIGH);
       delay(2000);
       digitalWrite(SIM808_on, LOW);
-      resetFunc();
+      MsTimer2::stop();
+      delay(4000);
     }
   }
   return true;
@@ -307,7 +310,8 @@ void parseHTTPdata(String dataSIM808)
     digitalWrite(SIM808_on, HIGH);
     delay(2000);
     digitalWrite(SIM808_on, LOW);
-    resetFunc(); // перезагрузка при ошибке сети
+    MsTimer2::stop();
+    delay(4000);
   }
 }
 
@@ -323,4 +327,9 @@ void serialListen()//отправка команд в ручном режиме
     Serial.write(SIM.read());
     delay(10);
   }
+}
+
+void  timerInterupt()
+{
+  wdt_reset();
 }
