@@ -1,7 +1,5 @@
 #include <SoftwareSerial.h>
 #include <EEPROM.h>
-#include <MsTimer2.h>
-#include <avr/wdt.h>
 
 SoftwareSerial SIM(2, 3);//RX, TX
 
@@ -12,46 +10,40 @@ SoftwareSerial SIM(2, 3);//RX, TX
 //digital pins
 #define SIM808_on 4 //вывод модуля из сна
 #define Pin_isFuel 5 //наличие топлива
-//#define Pin_isPayload 8 //наличие нагрузки
 #define Pin_isWork 12 //работа генератора
 
 float latitudeNow = 0, longitudeNow = 0, latitude = 0, longitude = 0;
 int countSatellite = 0, countSatelliteNow = 0, state = 0;
-String ID = "5c8a81743b615737a9760b05";
+String ID = "5c8a8151d25cb0459b826ed1";
 boolean isFuel, isWork, isPayload, DEBUG = false;
+
+void(* resetFunc) (void) = 0;//перезагрузка
 
 void setup()  //настройка SIM808 при первом включении
 {
-
   SIM.begin(19200);
   Serial.begin(115200);
 
   pinMode(SIM808_on, OUTPUT);
   pinMode(Pin_isFuel, INPUT);
-  // pinMode(Pin_isPayload, INPUT);
   pinMode(Pin_isWork, INPUT);
-
-  MsTimer2::set(200, timerInterupt);
-  MsTimer2::start();
-  wdt_enable(WDTO_1S);
 
   SIM.println("AT");
   long int t = millis();
-  Serial.print("\nWait connect");
+  Serial.print("Wait connect");
   while ( (t + 5000) > millis()) //ожидание включения модуля
   {
-    timerDelay(500);
+    delay(500);
     Serial.print(".");
     if (SIM.available()) break;
   }
   if (!SIM.available()) {
     digitalWrite(SIM808_on, HIGH);
-    timerDelay(2000);
+    delay(2000);
     digitalWrite(SIM808_on, LOW);
-    MsTimer2::stop();
+    resetFunc();
   }
-  timerDelay(1000);
-  Serial.print("\nDEBUG (y/n)");
+  Serial.println("\nDEBUG (y/n)");
   t = millis();
   while ( (t + 5000) > millis()) //ожидание включения модуля
   {
@@ -121,7 +113,8 @@ void loop()
   while (1)
   {
     serialListen();
-    if ((t + 10000) < millis()) // проверка состояния генератора каждую минуту
+    delay(1000);
+    if ((t + 30000) < millis()) // проверка состояния генератора каждую минуту
     {
       GPSdata();
       checkGeneratorStatus();
@@ -146,7 +139,7 @@ void GPSdata()
   while (SIM.available())
   {
     dataSendGPS += char(SIM.read());
-    timerDelay(10);
+    delay(10);
   }
 
   t = millis();
@@ -210,11 +203,6 @@ void checkGeneratorStatus()
     isFuel = digitalRead(Pin_isFuel);
     Send += "&isFuel=" +  String(isFuel);
   }
-  /* if (digitalRead(Pin_isPayload) != EEPROM.read(SaveisPayload))
-    {
-     isPayload = digitalRead(Pin_isPayload);
-     Send += "&isPayload=" +  String(isPayload);
-    }*/
   if (digitalRead(Pin_isWork) != EEPROM.read(SaveisWork))
   {
     isWork = digitalRead(Pin_isWork);
@@ -251,7 +239,7 @@ void commandSIM(String command, int timeout, boolean GetData, boolean debug) //�
 bool repeatSend(String command)
 {
   Serial.println("Error connect to SIM808...repeat send");
-  timerDelay(1000);
+  delay(1000);
   SIM.println(command);
   long int t = millis();
   while (!SIM.available())//ожидание ответа
@@ -259,11 +247,11 @@ bool repeatSend(String command)
     if ((t + 5000) < millis())
     {
       Serial.println("Error connect to SIM808...reset");
+      delay(1000);
       digitalWrite(SIM808_on, HIGH);
-      timerDelay(2000);
+      delay(2000);
       digitalWrite(SIM808_on, LOW);
-      MsTimer2::stop();
-      timerDelay(1000);
+      resetFunc();
     }
   }
   return true;
@@ -310,7 +298,6 @@ void parseHTTPdata(String dataSIM808)
   if (Code == "200")
   {
     EEPROM.update(SaveisFuel, isFuel);
-    // EEPROM.update(SaveisPayload, isPayload);
     EEPROM.update(SaveisWork, isWork);
     latitude = latitudeNow;
     longitude = longitudeNow;
@@ -318,20 +305,12 @@ void parseHTTPdata(String dataSIM808)
   else
   {
     digitalWrite(SIM808_on, HIGH);
-    timerDelay(2000);
+    delay(2000);
     digitalWrite(SIM808_on, LOW);
-    MsTimer2::stop();
+    resetFunc(); // перезагрузка при ошибке сети
   }
 }
 
-void timerDelay(unsigned short t)
-{
-  unsigned long ts = millis();
-  while (1) {
-    unsigned long currentMillis = millis();
-    if (currentMillis - ts > t)break;
-  }
-}
 void serialListen()//отправка команд в ручном режиме
 {
   while (Serial.available())
@@ -344,8 +323,4 @@ void serialListen()//отправка команд в ручном режиме
     Serial.write(SIM.read());
     delay(10);
   }
-}
-void  timerInterupt()
-{
-  wdt_reset();
 }
