@@ -16,7 +16,7 @@ SoftwareSerial SIM(2, 3);//RX, TX
 
 float latitudeNow = 0, longitudeNow = 0, latitude = 0, longitude = 0;
 int countSatellite = 0, countSatelliteNow = 0, state = 0;
-String ID = "5c8a8151d25cb0459b826ed1";
+String ID = "5c8a81519b0910c4a0529ef9";
 boolean isFuel, isWork, DEBUG = false;
 
 void setup()  //настройка SIM808 при первом включении
@@ -118,7 +118,7 @@ void loop()
   while (1)
   {
     serialListen();
-    if ((t + 10000) < millis()) // проверка состояния генератора каждую минуту
+    if ((t + 10000) < millis()) // проверка состояния генератора
     {
       GPSdata();
       checkGeneratorStatus();
@@ -166,6 +166,7 @@ void GPSdata()
   state = GPSdata[2].toInt();
   if (state)
   {
+    if (countSatelliteNow>20)delay(4000);
     if (countSatelliteNow > countSatellite )countSatellite = countSatelliteNow;
     latitudeNow = atof(GPSdata[0].c_str());
     longitudeNow = atof(GPSdata[1].c_str());
@@ -221,7 +222,7 @@ void HttpSend(String Send)
   commandSIM("AT+HTTPINIT", 100, false, DEBUG);
   commandSIM("AT+HTTPPARA=\"CID\",1", 100, false, DEBUG);
   commandSIM(Send, 100, false, DEBUG);
-  commandSIM("AT+HTTPACTION=0", 10000, true, DEBUG);
+  commandSIM("AT+HTTPACTION=0", 5000, true, DEBUG);
 }
 
 void commandSIM(String command, int timeout, boolean GetData, boolean debug) //отправка команды
@@ -276,43 +277,43 @@ void eventSIM808(String dataSIM808)//события с модуля
     i++;
     if ((t + 100) < millis())break;
   }
-  if (event == "HTTPACTION")parseHTTPdata(dataSIM808);
-}
 
-void parseHTTPdata(String dataSIM808)
-{
-  String Code = "";
-  int i = 0, CountComa = 0;
-  long int t = millis();
-  while (i < dataSIM808.length())
+  if (event == "HTTPACTION")
   {
-    if ((t + 1000) < millis())break;
-    if (dataSIM808[i] == ',') {
-      i++;
-      while (dataSIM808[i] != ',')
-      {
-        Code += dataSIM808[i];
+    String Code = "";
+    int i = 0, CountComa = 0;
+    long int t = millis();
+    while (i < dataSIM808.length())
+    {
+      if ((t + 1000) < millis())break;
+      if (dataSIM808[i] == ',') {
         i++;
+        while (dataSIM808[i] != ',')
+        {
+          Code += dataSIM808[i];
+          i++;
+        }
       }
+      i++;
     }
-    i++;
+    //Serial.print(Code);
+    if (Code == "200")
+    {
+      EEPROM.update(SaveisFuel, isFuel);
+      EEPROM.update(SaveisWork, isWork);
+      latitude = latitudeNow;
+      longitude = longitudeNow;
+    }
+    else
+    {
+      digitalWrite(SIM808_on, HIGH);
+      delay(2000);
+      digitalWrite(SIM808_on, LOW);
+      MsTimer2::stop();
+      delay(4000);
+    }
   }
-  //Serial.print(Code);
-  if (Code == "200")
-  {
-    EEPROM.update(SaveisFuel, isFuel);
-    EEPROM.update(SaveisWork, isWork);
-    latitude = latitudeNow;
-    longitude = longitudeNow;
-  }
-  else
-  {
-    digitalWrite(SIM808_on, HIGH);
-    delay(2000);
-    digitalWrite(SIM808_on, LOW);
-    MsTimer2::stop();
-    delay(4000);
-  }
+
 }
 
 void serialListen()//отправка команд в ручном режиме
