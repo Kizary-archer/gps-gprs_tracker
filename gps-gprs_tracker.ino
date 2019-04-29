@@ -166,11 +166,13 @@ void GPSdata()
   state = GPSdata[2].toInt();
   if (state)
   {
-    if (countSatelliteNow>20)delay(4000);
     if (countSatelliteNow > countSatellite )countSatellite = countSatelliteNow;
+
     latitudeNow = atof(GPSdata[0].c_str());
     longitudeNow = atof(GPSdata[1].c_str());
     countSatelliteNow = GPSdata[3].toInt();
+    
+    if (countSatelliteNow > 20)countSatelliteNow /= 10;
   }
   if (DEBUG)
   {
