@@ -16,7 +16,7 @@ SoftwareSerial SIM(2, 3);//RX, TX
 
 float latitudeNow = 0, longitudeNow = 0, latitude = 0, longitude = 0;
 int countSatellite = 0, countSatelliteNow = 0, state = 0;
-String ID = "5c8a81519b0910c4a0529ef9";
+String ID = "5c8a814a5841bc45ced73831";
 boolean isFuel, isWork, DEBUG = false;
 
 void setup()  //настройка SIM808 при первом включении
